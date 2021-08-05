@@ -1,0 +1,14 @@
+{
+  "name": "salesforce-wrapper",
+  "productName": "SalesforceWrapper",
+  "version": "1.0.0",
+  "description": "Cross-platform salesforce website wrapper/time tracker",
+  "main": "./main.prod.js",
+  "author": "Ad00t",
+  "scripts": {
+    "electron-rebuild": "node -r ../.erb/scripts/BabelRegister.js ../.erb/scripts/ElectronRebuild.js",
+    "postinstall": "yarn electron-rebuild"
+  },
+  "license": "MIT",
+  "dependencies": {}
+}
