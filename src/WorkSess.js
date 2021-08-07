@@ -4,6 +4,7 @@ import config from './config/config';
 const fs = require('fs');
 const { desktopCapturer } = require('electron');
 const randstring = require('randomstring');
+const publicIp = require('public-ip');
 
 const recFormat = 'video/webm; codecs=vp9';
 var screenRec, webcamRec;
@@ -14,10 +15,11 @@ var sessID = '';
 var patientName = '';
 var sessData = {};
 
-function resetSess() {
-    const pjson = require('../package.json');
+async function resetSess() {
     sessID = '';
     patientName = '';
+
+    const pjson = require('../package.json');
     sessData = {
         start_time: '',
         end_time: '',
@@ -26,22 +28,26 @@ function resetSess() {
         clinician_name: '',
         work_type: '',
         log_method: `${pjson.productName} v${pjson.version}`,
-        clinician_IP: '',
+        clinician_IP: (await publicIp.v4()),
         pdf_audit: '',
         video_audit: ''
     };
 }
 
 // When timer starts
-export async function onStart(browser) {
+export async function onStart(workType, browser) {
     // Session init & get IDs
-    resetSess();
+    await resetSess();
     sessID = randstring.generate(10);
-    patientName = await browser.executeJavaScript('document.querySelector("title").textContent');
-    patientName = patientName.substring(0, patientName.indexOf('|')).trim();
-    sessData.patient_ID = browser.getURL()
-        .replace('https://assurehealth--hc.lightning.force.com/lightning/r/Account/', '')
-        .replace('/view', '');
+    patientName = browser.getTitle().substring(0, patientName.indexOf('|')).trim();
+    const papURL = browser.getURL();
+    sessData.patient_ID = papURL.replace('https://assurehealth--hc.lightning.force.com/lightning/r/Account/', '').replace('/view', '');
+    sessData.work_type = workType;
+
+    // Get clinician name
+    await browser.executeJavaScript('document.querySelector("button.branding-userProfile-button").click()');
+    await new Promise((resolve, reject) => { setTimeout(() => { resolve(''); }, 2000); });
+    sessData.clinician_name = await browser.executeJavaScript('document.querySelector("h1.profile-card-name").textContent');
 
     // Screen recording setup
     const stream = await navigator.mediaDevices.getUserMedia({ video: { mandatory: { chromeMediaSource: 'desktop', chromeMediaSourceId: 'screen:0:0' }}, audio: false });
@@ -75,11 +81,11 @@ export async function onStart(browser) {
     // Start recordings
     if (screenRec) screenRec.start();
     if (webcamRec) webcamRec.start();
-    sessData.start_time = Date.now();
+    sessData.start_time = new Date();
 }
 
 // When timer stopped
-export function onStop() {
+export async function onStop() {
     // Stop recordings
     if (screenRec && screenRec.state === 'recording') {
         screenRec.stop();
@@ -91,8 +97,10 @@ export function onStop() {
     }
 
     // End timing
-    sessData.end_time = Date.now();
+    sessData.end_time = new Date();
     sessData.duration = Math.round((sessData.end_time - sessData.start_time) / 1000.0);
+    sessData.start_time = sessData.start_time.toLocaleString('en-US', { timeZone: 'America/New_York' });
+    sessData.end_time = sessData.end_time.toLocaleString('en-US', { timeZone: 'America/New_York' });
 
     // Post-processing/combining videos
     

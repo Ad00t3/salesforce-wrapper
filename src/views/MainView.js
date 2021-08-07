@@ -8,13 +8,17 @@ import IconButton from '@material-ui/core/IconButton';
 import Grid from '@material-ui/core/Grid';
 import Snackbar from '@material-ui/core/Snackbar';
 import MuiAlert from '@material-ui/lab/Alert';
-import Modal from '@material-ui/core/Modal';
 import Card from '@material-ui/core/Card';
 import CardContent from '@material-ui/core/CardContent';
 import FormControlLabel from '@material-ui/core/FormControlLabel';
 import Switch from '@material-ui/core/Switch';
 import Autocomplete, { createFilterOptions } from '@material-ui/lab/Autocomplete';
 import TextField from '@material-ui/core/TextField';
+import Dialog from '@material-ui/core/Dialog';
+import DialogActions from '@material-ui/core/DialogActions';
+import DialogContent from '@material-ui/core/DialogContent';
+import DialogContentText from '@material-ui/core/DialogContentText';
+import DialogTitle from '@material-ui/core/DialogTitle';
 
 import PlayArrow from '@material-ui/icons/PlayArrow';
 import Stop from '@material-ui/icons/Stop';
@@ -22,6 +26,7 @@ import Settings from '@material-ui/icons/Settings';
 
 import { makeStyles } from '@material-ui/core/styles';
 import * as colors from '@material-ui/core/colors';
+import PuffLoader from "react-spinners/PuffLoader";
 
 import Timer from 'react-compound-timer';
 import WebView from 'react-electron-web-view';
@@ -43,34 +48,28 @@ function ConfigMenu({}) {
   };
 
   return (
-    <Card>
-      <CardContent>
-        <h1 style={{ textAlign: 'center' }}>Settings</h1>
-        <br />
-        <FormControlLabel
-          control={<Switch checked={state.webcamRecording} onChange={handleFormToggle} name="webcamRecording" />}
-          label="Record Webcam"
-        />
-      </CardContent>
-    </Card>
+    <div>
+      <FormControlLabel
+        control={<Switch checked={state.webcamRecording} onChange={handleFormToggle} name="webcamRecording" />}
+        label="Record Webcam"
+      />
+    </div>
   );
 }
 
-function WorkTypeComboBox() {
-  const [value, setValue] = React.useState('');
-
+function WorkTypeComboBox({ workType, setWorkType }) {
   const filter = createFilterOptions();
 
   return (
     <Autocomplete
-      value={value}
+      value={workType}
       onChange={(event, newValue) => {
         if (newValue) {
           if (newValue.inputValue) {
-            setValue(newValue.inputValue);  
+            setWorkType(newValue.inputValue);  
             config.set('workTypes', [ ...config.get('workTypes'), newValue.inputValue ]);
           } else {
-            setValue(newValue);
+            setWorkType(newValue);
           }
         }
       }}
@@ -103,7 +102,7 @@ function WorkTypeComboBox() {
       style={{ width: 300 }}
       freeSolo
       renderInput={(params) => (
-        <TextField {...params} label="Activity Types" variant="outlined" />
+        <TextField {...params} label="Activity Type" variant="outlined" />
       )}
     />
   );
@@ -113,6 +112,8 @@ export default function MainView({}) {
   const [isStarted, setIsStarted] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [configOpen, setConfigOpen] = useState(false);
+  const [workType, setWorkType] = useState('');
+  const [loading, setLoading] = useState(false);
 
   var browser = null;
 
@@ -139,13 +140,17 @@ export default function MainView({}) {
     
     if (isStarted) {
       stop();
-      WorkSess.onStop();
       reset();
+      setLoading(true);
+      await WorkSess.onStop();
+      setLoading(false);
       success = true;
     } else {
       if (browser.getURL().startsWith('https://assurehealth--hc.lightning.force.com/lightning/r/Account/')) {
+        setLoading(true);
+        await WorkSess.onStart(workType, browser);
+        setLoading(false);
         start();
-        await WorkSess.onStart(browser);
         success = true;
       } else {
         raiseError('A work session may only be started on a patient account page. Please navigate to one.');
@@ -205,22 +210,21 @@ export default function MainView({}) {
                       </IconButton>
                     </Grid>
                     <Grid item>
-                      <WorkTypeComboBox />
+                      <WorkTypeComboBox workType={workType} setWorkType={setWorkType} />
                     </Grid>
                     <Grid item>
-                      <IconButton 
-                        onClick={() => { setConfigOpen(true); }}
-                      >
+                      <IconButton onClick={() => { setConfigOpen(true); }}>
                         <Settings />
                       </IconButton>
-                      <Modal
+                      <Dialog
                         open={configOpen}
                         onClose={() => { setConfigOpen(false); }}
-                        aria-labelledby="simple-modal-title"
-                        aria-describedby="simple-modal-description"
                       >
-                        <div><ConfigMenu /></div>
-                      </Modal>
+                        <DialogTitle>Settings</DialogTitle>
+                        <DialogContent>
+                          <ConfigMenu />
+                        </DialogContent>
+                      </Dialog>
                     </Grid>
                   </Grid>
                 </React.Fragment>
@@ -229,11 +233,16 @@ export default function MainView({}) {
           </Toolbar>
         </div>
       </AppBar>
+      <PuffLoader
+        color={colors.purple[700]}
+        css={'display: block; margin: 0 auto;'}
+        loading={loading}
+        size="6em"
+      />
       <WebView 
         src={'https://assurehealth--hc.my.salesforce.com/'}
-        enableremotemodule="true"
         style={{ 
-          display: 'grid',
+          display: (loading ? 'none' : 'grid'),
           position: 'absolute',
           left: '-8px',
           top: '85px',
@@ -241,6 +250,8 @@ export default function MainView({}) {
           height: 'calc(100% - 93px)'
         }}
         ref={node => { browser = node }}
+        disablewebsecurity
+        allowpopups
       />
     </div>
   );
