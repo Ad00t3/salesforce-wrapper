@@ -40,8 +40,7 @@ export async function onStart(workType, browser) {
     await resetSess();
     sessID = randstring.generate(10);
     patientName = browser.getTitle().substring(0, patientName.indexOf('|')).trim();
-    const papURL = browser.getURL();
-    sessData.patient_ID = papURL.replace('https://assurehealth--hc.lightning.force.com/lightning/r/Account/', '').replace('/view', '');
+    sessData.patient_ID = browser.getURL().replace('https://assurehealth--hc.lightning.force.com/lightning/r/Account/', '').replace('/view', '');
     sessData.work_type = workType;
 
     // Get clinician name
