@@ -11,9 +11,12 @@
 import 'core-js/stable';
 import 'regenerator-runtime/runtime';
 import path from 'path';
-import { app, BrowserWindow, BrowserView, shell } from 'electron';
+import { app, BrowserWindow, shell } from 'electron';
 import { autoUpdater } from 'electron-updater';
 import log from 'electron-log';
+import Store from 'electron-store';
+
+Store.initRenderer();
 
 export default class AppUpdater {
   constructor() {
@@ -50,9 +53,6 @@ const installExtensions = async () => {
     .catch(console.log);
 };
 
-const width = 1366;
-const height = 768;
-
 const createWindow = async () => {
   if (
     process.env.NODE_ENV === 'development' ||
@@ -69,37 +69,20 @@ const createWindow = async () => {
     return path.join(RESOURCES_PATH, ...paths);
   };
 
+  const pjson = require('../package.json');
   win = new BrowserWindow({
-    title: 'Salesforce Wrapper',
-    width: width,
-    height: height,
+    title: `${pjson.productName} v${pjson.version}`,
+    width: 1366,
+    height: 768,
     show: false,
     autoHideMenuBar: true,
     webPreferences: {
       devTools: true,
       nodeIntegration: true,
+      webviewTag: true
     },
     icon: getAssetPath('icon.png'),
   });
-
-  win.webContents.openDevTools({ mode: 'detach' });
-
-  const view = new BrowserView();
-  win.setBrowserView(view);
-  const vSizeRatio = 0.8;
-  const vWidth = vSizeRatio * width;
-  const vHeight = vSizeRatio * height;
-  view.setBounds({
-    x: Math.round((width - vWidth) / 2),
-    y: Math.round(height - vHeight) - 40,
-    width: Math.round(vWidth),
-    height: Math.round(vHeight)
-  });
-  view.setAutoResize({
-    horizontal: true,
-    vertical: true
-  });
-  view.webContents.loadURL('https://assurehealth--hc.my.salesforce.com/');
 
   win.loadURL(`file://${__dirname}/index.html`);
 

@@ -1,6 +1,6 @@
 {
   "name": "salesforce-wrapper",
-  "productName": "SalesforceWrapper",
+  "productName": "Salesforce Wrapper",
   "version": "1.0.0",
   "description": "Cross-platform salesforce website wrapper/time tracker",
   "main": "./main.prod.js",

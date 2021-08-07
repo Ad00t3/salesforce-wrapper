@@ -1,0 +1,12 @@
+{
+	"start_time": "4/12/2020, 12:00:00 PM",
+	"end_time": "4/12/2020, 01:00:00 PM",
+	"duration": "3600",
+	"patient_ID": "0015Y00002qEKmcQAG",
+	"clinician_name": "John Doe",
+	"work_type": "someWorkType",
+	"log_method": "Salesforce Wrapper v1.0.0",
+	"clinician_IP": "74.192.170.75",
+	"pdf_audit": "https://cloud.box.com/s/ainci90w1sa1v3et",
+	"video_audit": "https://cloud.box.com/s/i0oajs0c9j0912joms"
+}

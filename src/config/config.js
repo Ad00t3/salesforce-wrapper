@@ -1,32 +1,14 @@
-const fs = require('fs');
-const path = require('path');
+const Store = require('electron-store');
 
-const configFP = './config.json';
-var config = {};
+const config = new Store({
+  schema: {
+    webcamRecording: { type: 'boolean', default: false },
+    workTypes: { 
+      type: 'array',
+      items: { type: 'string' },
+      default: [ 'a', 'b', 'c' ]
+    }
+  }
+});
 
-(() => {
-    if (fs.existsSync(configFP))
-        config = JSON.parse(fs.readFileSync(configFP));
-    else
-        reset();
-})();
-
-function write() {
-    fs.writeFileSync(configFP, JSON.stringify(config));
-}
-
-export function get(property) {
-    return config[property];
-}
-
-export function set(key, value) {
-    config[key] = value;
-    write();
-}
-
-export function reset() {
-    config = {
-        webcamRecording: false
-    };
-    write();
-}
+export default config; 
