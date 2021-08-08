@@ -65,9 +65,7 @@ export async function onStart(workType, browser) {
         screenRec = new MediaRecorder(stream, { mimeType: recFormat });
         screenRec.ondataavailable = (e) => { screenRecBlobs.push(e.data); }
         screenRec.onstop = async (e) => {
-            stream.getTracks().forEach(function(track) {
-                track.stop();
-            });
+            stream.getTracks().forEach((track) => track.stop());
             const blob = new Blob(screenRecBlobs, { type: recFormat });
             const buffer = await blob.arrayBuffer();
             fs.writeFileSync(`screenRec-${sessID}.webm`, Buffer.from(buffer));
@@ -84,9 +82,7 @@ export async function onStart(workType, browser) {
             webcamRec = new MediaRecorder(stream, { mimeType: recFormat });
             webcamRec.ondataavailable = (e) => { webcamRecBlobs.push(e.data); }
             webcamRec.onstop = async (e) => {
-                stream.getTracks().forEach(function(track) {
-                    track.stop();
-                });
+                stream.getTracks().forEach((track) => track.stop());
                 const blob = new Blob(webcamRecBlobs, { type: recFormat });
                 const buffer = await blob.arrayBuffer();
                 fs.writeFileSync(`webcamRec-${sessID}.webm`, Buffer.from(buffer));
