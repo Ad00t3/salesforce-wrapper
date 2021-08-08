@@ -148,10 +148,14 @@ export default function MainView({}) {
     } else {
       if (browser.getURL().startsWith('https://assurehealth--hc.lightning.force.com/lightning/r/Account/')) {
         setLoading(true);
-        await WorkSess.onStart(workType, browser);
+        const startErrors = await WorkSess.onStart(workType, browser);
         setLoading(false);
-        start();
-        success = true;
+        if (startErrors.length === 0) {
+          start();
+          success = true;
+        } else {
+          raiseError(`Encountered error(s) while trying to start work session: ${startErrors.join(', ')}`);
+        }
       } else {
         raiseError('A work session may only be started on a patient account page. Please navigate to one.');
       }
@@ -185,7 +189,7 @@ export default function MainView({}) {
                     <Grid item>
                       <Snackbar 
                         open={errorMsg !== ''} 
-                        autoHideDuration={4000} 
+                        autoHideDuration={3000} 
                         onClose={hErrorClose}
                         anchorOrigin={{ vertical: 'top', horizontal: 'left' }}
                         key="topleft"

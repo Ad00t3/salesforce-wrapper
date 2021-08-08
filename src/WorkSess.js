@@ -37,50 +37,59 @@ async function resetSess() {
 // When timer starts
 export async function onStart(workType, browser) {
     // Session init & get IDs
+    const errors = [];
     await resetSess();
     sessID = randstring.generate(10);
     patientName = browser.getTitle().substring(0, patientName.indexOf('|')).trim();
     sessData.patient_ID = browser.getURL().replace('https://assurehealth--hc.lightning.force.com/lightning/r/Account/', '').replace('/view', '');
     sessData.work_type = workType;
+    if (workType === '')
+        errors.push('invalid-activity-type');
 
     // Get clinician name
     await browser.executeJavaScript('document.querySelector("button.branding-userProfile-button").click()');
-    await new Promise((resolve, reject) => { setTimeout(() => { resolve(''); }, 2000); });
+    await new Promise((resolve, reject) => { setTimeout(() => { resolve(''); }, 3000); });
     sessData.clinician_name = await browser.executeJavaScript('document.querySelector("h1.profile-card-name").textContent');
 
     // Screen recording setup
-    const stream = await navigator.mediaDevices.getUserMedia({ video: { mandatory: { chromeMediaSource: 'desktop', chromeMediaSourceId: 'screen:0:0' }}, audio: false });
-    screenRec = new MediaRecorder(stream, { mimeType: recFormat });
-    screenRec.ondataavailable = (e) => { screenRecBlobs.push(e.data); }
-    screenRec.onstop = async (e) => {
-        const blob = new Blob(screenRecBlobs, { type: recFormat });
-        const buffer = await blob.arrayBuffer();
-        fs.writeFileSync(`screenRec-${sessID}.webm`, Buffer.from(buffer));
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { mandatory: { chromeMediaSource: 'desktop', chromeMediaSourceId: 'screen:0:0' }}, audio: false });
+        screenRec = new MediaRecorder(stream, { mimeType: recFormat });
+        screenRec.ondataavailable = (e) => { screenRecBlobs.push(e.data); }
+        screenRec.onstop = async (e) => {
+            const blob = new Blob(screenRecBlobs, { type: recFormat });
+            const buffer = await blob.arrayBuffer();
+            fs.writeFileSync(`screenRec-${sessID}.webm`, Buffer.from(buffer));
+        }
+    } catch (e) {
+        console.error(e);
+        errors.push('cant-record-screen');
     }
 
     // Webcam recording setup
     if (config.get('webcamRecording')) {
-        const stream = await navigator.getUserMedia(
-            { video: true, audio: false },
-            (stream) => {
-                webcamRec = new MediaRecorder(stream, { mimeType: recFormat });
-                webcamRec.ondataavailable = (e) => { webcamRecBlobs.push(e.data); }
-                webcamRec.onstop = async (e) => {
-                    const blob = new Blob(webcamRecBlobs, { type: recFormat });
-                    const buffer = await blob.arrayBuffer();
-                    fs.writeFileSync(`webcamRec-${sessID}.webm`, Buffer.from(buffer));
-                }
-            },
-            (error) => {
-                console.error(error);
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+            webcamRec = new MediaRecorder(stream, { mimeType: recFormat });
+            webcamRec.ondataavailable = (e) => { webcamRecBlobs.push(e.data); }
+            webcamRec.onstop = async (e) => {
+                const blob = new Blob(webcamRecBlobs, { type: recFormat });
+                const buffer = await blob.arrayBuffer();
+                fs.writeFileSync(`webcamRec-${sessID}.webm`, Buffer.from(buffer));
             }
-        );
+        } catch (e) {
+            console.error(e);
+            errors.push('cant-record-webcam');
+        }
     }
 
     // Start recordings
-    if (screenRec) screenRec.start();
-    if (webcamRec) webcamRec.start();
-    sessData.start_time = new Date();
+    if (errors.length === 0) {
+        if (screenRec) screenRec.start();
+        if (webcamRec) webcamRec.start();
+        sessData.start_time = new Date();
+    }
+    return errors;
 }
 
 // When timer stopped
