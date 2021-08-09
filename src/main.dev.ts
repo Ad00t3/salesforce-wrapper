@@ -79,7 +79,8 @@ const createWindow = async () => {
     webPreferences: {
       devTools: true,
       nodeIntegration: true,
-      webviewTag: true
+      webviewTag: true,
+      enableRemoteModule: true
     },
     icon: getAssetPath('icon.png'),
   });

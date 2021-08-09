@@ -190,6 +190,7 @@
     "electron-log": "^4.2.4",
     "electron-store": "^8.0.0",
     "electron-updater": "^4.3.4",
+    "fs-extra": "^10.0.0",
     "history": "^5.0.0",
     "pdf-lib": "^1.16.0",
     "public-ip": "^4.0.4",
