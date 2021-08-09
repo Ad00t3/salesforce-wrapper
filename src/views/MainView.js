@@ -60,6 +60,12 @@ function ConfigMenu({}) {
 function WorkTypeComboBox({ workType, setWorkType }) {
   const filter = createFilterOptions();
 
+  useEffect(() => {
+    const workTypes = config.get('workTypes');
+    if (workTypes.length > 0)
+      setWorkType(workTypes[0]);
+  });
+
   return (
     <Autocomplete
       value={workType}
@@ -142,9 +148,13 @@ export default function MainView({}) {
       stop();
       reset();
       setLoading(true);
-      await WorkSess.onStop();
+      const stopErrors = await WorkSess.onStop();
       setLoading(false);
-      success = true;
+      if (stopErrors.length === 0) {
+        success = true;
+      } else {
+        raiseError(`Encountered error(s) while trying to stop work session: ${stopErrors.join(', ')}`);
+      }
     } else {
       if (browser.getURL().startsWith('https://assurehealth--hc.lightning.force.com/lightning/r/Account/')) {
         setLoading(true);
@@ -201,7 +211,7 @@ export default function MainView({}) {
                     </Grid>
                     <Grid item>
                       <div style={{ fontSize: 30 }}>
-                        <Timer.Days />d <Timer.Hours />h <Timer.Minutes />m <Timer.Seconds />s
+                        <Timer.Hours />h <Timer.Minutes />m <Timer.Seconds />s
                       </div>
                     </Grid>
                     <Grid item>
@@ -209,6 +219,7 @@ export default function MainView({}) {
                         variant="contained" 
                         style={{ backgroundColor: (isStarted ? colors.red[400] : colors.green[400]) }}
                         onClick={async () => { await toggleWorkSess(start, stop, reset); }}
+                        disabled={loading}
                       >
                         { isStarted ? <Stop /> : <PlayArrow /> }
                       </IconButton>
