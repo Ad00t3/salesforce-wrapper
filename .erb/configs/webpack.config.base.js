@@ -13,6 +13,9 @@ export default {
     new webpack.EnvironmentPlugin({
       NODE_ENV: 'production',
     }),
+    new webpack.DefinePlugin({
+      'process.browser': 'true'
+    })
   ],
 
   /**

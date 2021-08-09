@@ -6,7 +6,6 @@ const config = new Store({
     workTypes: { 
       type: 'array',
       items: { type: 'string' },
-      default: [ 'a', 'b', 'c' ]
     }
   }
 });

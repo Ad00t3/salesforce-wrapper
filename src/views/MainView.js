@@ -30,7 +30,7 @@ import PuffLoader from "react-spinners/PuffLoader";
 
 import Timer from 'react-compound-timer';
 import WebView from 'react-electron-web-view';
-import * as WorkSess from '../WorkSess';
+import * as WorkSess from '../core/WorkSess';
 import config from '../config/config';
 
 function Alert(props) {
