@@ -90,16 +90,19 @@ export function onStop() {
     return new Promise((resolve, reject) => {
         mergerRec.addEventListener('writeDone', async (e) => {
             // Send files to Box.com API
-            await BoxApi.initFolder(sessID);
-            sessData.video_audit = await BoxApi.upload('video.mp4');
+            await BoxApi.initFolder(sessID, errors);
+            sessData.video_audit = await BoxApi.upload('video.mp4') || '';
             await PDFGen.genAuditLog(sessID, patientName, sessData);
-            sessData.pdf_audit = await BoxApi.upload('audit.pdf');
+            sessData.pdf_audit = await BoxApi.upload('audit.pdf') || '';
 
-            // Send JSON payload to salesforce endpoint (via AWS Lambda)
-            console.log(sessData);
-
+            if (errors.length === 0) {
+                // Send JSON payload to salesforce endpoint (via AWS Lambda)
+                console.log('send');
+            }
+            
             // Wrap up
-            // fs.removeSync(`out/${sessID}`);
+            console.log(sessData);
+            fs.removeSync(`out/${sessID}`);
             mergerRec = null;
             resolve({ errors: errors }); // done
         });

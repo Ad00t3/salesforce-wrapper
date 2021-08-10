@@ -74,11 +74,10 @@ export default function MainView({}) {
       setLoading(true);
       const { errors } = await WorkSess.onStop();
       setLoading(false);
-      if (errors.length === 0) {
-        success = true;
-      } else {
+      if (errors.length !== 0) {
         raiseError(`Encountered error(s) while trying to stop work session: ${errors.join(', ')}`);
       }
+      success = true;
     } else {
       if (browserRef.current.getURL().startsWith('https://assurehealth--hc.lightning.force.com/lightning/r/Account/')) {
         setLoading(true);
@@ -177,7 +176,7 @@ export default function MainView({}) {
       <PuffLoader
         color={colors.purple[700]}
         css={'display: block; margin: 0 auto;'}
-        loading={loading}
+        loading={true}
         size="6em"
       />
       <WebView 

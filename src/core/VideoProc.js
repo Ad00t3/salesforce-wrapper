@@ -71,32 +71,37 @@ export async function startStreams(sessID, sessData, errors, canvas) {
         mergerRec = new MediaRecorder(merger.result, { mimeType: recFormat });
         mergerRec.ondataavailable = (e) => { mergerRecBlobs.push(e.data); }
         mergerRec.onstop = async (e) => {
-            if (merger) { 
-                merger.result.getTracks().forEach(track => track.stop());
-                merger.destroy(); 
+            try {
+                if (merger) { 
+                    merger.result.getTracks().forEach(track => track.stop());
+                    merger.destroy(); 
+                }
+                if (screenStream) {
+                    screenStream.getTracks().forEach(track => track.stop());
+                    screenStream = null;
+                }
+                if (canvasStream) {
+                    canvasStream.getTracks().forEach(track => track.stop());
+                    canvasStream = null;
+                }
+                if (webcamStream) {
+                    webcamStream.getTracks().forEach(track => track.stop());
+                    webcamStream = null;
+                }
+    
+                const webm = `out/${sessID}/video.webm`;
+                const mp4 = `out/${sessID}/video.mp4`;
+    
+                const blob = new Blob(mergerRecBlobs, { type: recFormat });
+                const buffer = await blob.arrayBuffer();
+                fs.writeFileSync(webm, Buffer.from(buffer));
+                child.execFileSync(ffmpegPath, [ '-fflags', '+genpts', '-i', webm, '-r', '25', mp4 ]);
+                fs.removeSync(webm);
+                mergerRec.dispatchEvent(new Event('writeDone'));
+            } catch (ex) {
+                errors.push('mergerRec-onstop-failed');
+                console.error(ex);
             }
-            if (screenStream) {
-                screenStream.getTracks().forEach(track => track.stop());
-                screenStream = null;
-            }
-            if (canvasStream) {
-                canvasStream.getTracks().forEach(track => track.stop());
-                canvasStream = null;
-            }
-            if (webcamStream) {
-                webcamStream.getTracks().forEach(track => track.stop());
-                webcamStream = null;
-            }
-
-            const webm = `out/${sessID}/video.webm`;
-            const mp4 = `out/${sessID}/video.mp4`;
-
-            const blob = new Blob(mergerRecBlobs, { type: recFormat });
-            const buffer = await blob.arrayBuffer();
-            fs.writeFileSync(webm, Buffer.from(buffer));
-            child.execFileSync(ffmpegPath, [ '-fflags', '+genpts', '-i', webm, '-r', '25', mp4 ]);
-            fs.removeSync(webm);
-            mergerRec.dispatchEvent(new Event('writeDone'));
         }
     } catch (e) {
         console.error(e);
