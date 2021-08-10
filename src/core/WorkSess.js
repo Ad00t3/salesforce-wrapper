@@ -1,6 +1,6 @@
 import config from '../config/config';
 import * as PDFGen from './PDFGen';
-import * as API from './API';
+import * as BoxApi from './BoxApi';
 import * as VideoProc from './VideoProc';
 
 const fs = require('fs-extra');
@@ -12,6 +12,7 @@ var mergerRec;
 var sessID = '';
 var patientName = '';
 var sessData = {};
+var errors = [];
 
 async function resetSess() {
     sessID = '';
@@ -34,7 +35,7 @@ async function resetSess() {
 // When timer starts
 export async function onStart(workType, browser, canvas) {
     // Session init
-    const errors = [];
+    errors = [];
     await resetSess();
     sessID = randstring.generate(16);
     if (!fs.existsSync('out/')) fs.mkdirSync('out/');
@@ -69,38 +70,38 @@ export async function onStart(workType, browser, canvas) {
     } else {
         fs.removeSync(`out/${sessID}`);
     }
-    return { 
-                errors: errors,
-                sessData: { ...sessData, patientName: patientName, sessID: sessID }
-            };
+    return { errors: errors, sessData: { ...sessData, patientName: patientName, sessID: sessID } };
 }
 
 
 // When timer stopped
-export async function onStop() {
-    // End recording
-    const errors = [];
-    if (mergerRec && mergerRec.state === 'recording') {
-        mergerRec.stop();
-        mergerRec = null;
-    }
-
+export function onStop() {
     // End timing
+    errors = [];
     sessData.end_time = new Date();
     sessData.duration = Math.round((sessData.end_time - sessData.start_time) / 1000.0);
     sessData.start_time = sessData.start_time.toLocaleString('en-US', { timeZone: 'America/New_York' });
     sessData.end_time = sessData.end_time.toLocaleString('en-US', { timeZone: 'America/New_York' });
 
-    // Send files to Box.com API
-    API.initBox(sessID);
-    sessData.video_audit = API.uploadToBox(`out/${sessID}/video.webm`);
-    await PDFGen.genAuditLog(sessID, patientName, sessData);
-    sessData.pdf_audit = API.uploadToBox(`out/${sessID}/audit.pdf`);
+    // End recording
+    if (mergerRec && mergerRec.state === 'recording')
+        mergerRec.stop();
+    
+    return new Promise((resolve, reject) => {
+        mergerRec.addEventListener('writeDone', async (e) => {
+            // Send files to Box.com API
+            await BoxApi.initFolder(sessID);
+            sessData.video_audit = await BoxApi.upload('video.mp4');
+            await PDFGen.genAuditLog(sessID, patientName, sessData);
+            sessData.pdf_audit = await BoxApi.upload('audit.pdf');
 
-    // Send JSON payload to salesforce endpoint (via AWS Lambda)
-    console.log(sessData);
+            // Send JSON payload to salesforce endpoint (via AWS Lambda)
+            console.log(sessData);
 
-    // Wrap up
-    // fs.removeSync(`out/${sessID}`);
-    return { errors: errors };
+            // Wrap up
+            // fs.removeSync(`out/${sessID}`);
+            mergerRec = null;
+            resolve({ errors: errors }); // done
+        });
+    });
 }

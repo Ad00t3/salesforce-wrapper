@@ -210,7 +210,7 @@ function Alert(props) {
 
 function ConfigMenu({}) {
   const [state, setState] = useState({
-    webcamRecording: config.get('webcamRecording')
+    useWebcam: config.get('rec.useWebcam')
   });
 
   const handleFormToggle = (event) => {
@@ -221,8 +221,8 @@ function ConfigMenu({}) {
   return (
     <div>
       <FormControlLabel
-        control={<Switch checked={state.webcamRecording} onChange={handleFormToggle} name="webcamRecording" />}
-        label="Record Webcam"
+        control={<Switch checked={state.useWebcam} onChange={handleFormToggle} name="useWebcam" />}
+        label="Use Webcam"
       />
     </div>
   );
@@ -287,30 +287,30 @@ function WorkTypeComboBox({ workType, setWorkType }) {
 
 const Canvas = React.forwardRef(({ isStarted, startTime, sessData }, ref) => {  
   function draw(ctx) {
-      // Background
-      ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-      ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
-      ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+    // Background
+    ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+    ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
+    ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
 
-      if (isStarted) {
-        ctx.fillStyle = 'white';
-        var x = 10, y = 32;
-        var ls1 = 24, ls2 = 18;
+    if (isStarted) {
+      ctx.fillStyle = 'white';
+      var x = 10, y = 32;
+      var ls1 = 24, ls2 = 18;
 
-        ctx.font = "26px Arial";
-        const { hours, minutes, seconds } = util.deconstructDuration(Math.round((Date.now() - startTime) / 1000.0));
-        ctx.fillText(`${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`, x, y); y += ls1;
+      ctx.font = "26px Arial";
+      const { hours, minutes, seconds } = util.deconstructDuration(Math.round((Date.now() - startTime) / 1000.0));
+      ctx.fillText(`${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`, x, y); y += ls1;
 
-        ctx.font = "13px Arial";
-        ctx.fillText(`Patient: ${sessData.patientName} (ID: ${sessData.patient_ID})`, x, y); y += ls2;
-        ctx.fillText(`Session ID: ${sessData.sessID}`, x, y); y += ls2;
-        const clinSplit = sessData.clinician_name.split(' ');
-        ctx.fillText(`Care Manager: ${clinSplit[1]}, ${clinSplit[0]}`, x, y); y += ls2;
-        ctx.fillText(`Work Performed By: ${sessData.clinician_name}`, x, y); y += ls2;
-        const timeStr = new Date(sessData.start_time).toLocaleTimeString('en-US', { timeZone: 'America/New_York' });
-        const durationStr = `${hours} hr, ${minutes} min, ${seconds} sec`;
-        ctx.fillText(`Started: ${timeStr} EDT (${durationStr})`, x, y);
-      }
+      ctx.font = "13px Arial";
+      ctx.fillText(`Patient: ${sessData.patientName} (ID: ${sessData.patient_ID})`, x, y); y += ls2;
+      ctx.fillText(`Session ID: ${sessData.sessID}`, x, y); y += ls2;
+      const clinSplit = sessData.clinician_name.split(' ');
+      ctx.fillText(`Care Manager: ${clinSplit[1]}, ${clinSplit[0]}`, x, y); y += ls2;
+      ctx.fillText(`Work Performed By: ${sessData.clinician_name}`, x, y); y += ls2;
+      const timeStr = new Date(sessData.start_time).toLocaleTimeString('en-US', { timeZone: 'America/New_York' });
+      const durationStr = `${hours} hr, ${minutes} min, ${seconds} sec`;
+      ctx.fillText(`Started: ${timeStr} EDT (${durationStr})`, x, y);
+    }
   }
   
   useEffect(() => {
@@ -327,14 +327,15 @@ const Canvas = React.forwardRef(({ isStarted, startTime, sessData }, ref) => {
     }
   }, [draw]);
 
-  const sWidth = 1280, sHeight = 720;
-  const f = 3.5;
+  const sWidth = config.get('rec.sWidth');
+  const sHeight = config.get('rec.sHeight');
+  const f = config.get('rec.f');
 
   return (
     <canvas 
       ref={ref} 
       width={sWidth / f} 
-      height={config.get('webcamRecording') ? sHeight - (sHeight / f) : sHeight} 
+      height={config.get('rec.useWebcam') ? sHeight - (sHeight / f) : sHeight} 
     />
   );
 });

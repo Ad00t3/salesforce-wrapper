@@ -1,10 +1,22 @@
 import config from '../config/config';
 
 const fs = require('fs-extra');
-const { screen } = require('electron').remote;
+const path = require('path');
+const { remote } = require('electron');
+const { screen } = remote;
 const VideoStreamMerger = require('video-stream-merger').VideoStreamMerger;
+const child = require('child_process');
 
-const recFormat = 'video/webm; codecs=vp9';
+const ffmpegStatic = require('ffmpeg-static');
+const li = ffmpegStatic.lastIndexOf('/');
+const ffmpegPath = path.join(
+    (remote.app.getAppPath() + '/../').replace('app.asar', 'app.asar.unpacked'),
+    'node_modules/ffmpeg-static/',
+    ffmpegStatic.substring((li === -1 ? ffmpegStatic.lastIndexOf('\\') : li) + 1)
+);
+console.log(ffmpegPath);
+
+const recFormat = 'video/webm';
 var merger, mergerRec;
 var screenStream, webcamStream, canvasStream;
 var mergerRecBlobs = [];
@@ -16,13 +28,16 @@ export async function startStreams(sessID, sessData, errors, canvas) {
     mergerRecBlobs = [];
 
     try {
+        const sWidth = config.get('rec.sWidth');
+        const sHeight = config.get('rec.sHeight');
+        const f = config.get('rec.f');
+
         const sDim = {
             x: 0,
             y: 0,
-            width: 1280,
-            height: 720
+            width: sWidth,
+            height: sHeight
         };
-        const f = 3.5;
         const wDim = {
             x: sDim.width,
             y: 0,
@@ -31,11 +46,12 @@ export async function startStreams(sessID, sessData, errors, canvas) {
         };
         const iDim = {
             x: wDim.x,
-            y: config.get('webcamRecording') ? wDim.height : 0,
+            y: config.get('rec.useWebcam') ? wDim.height : 0,
             width: wDim.width,
-            height: config.get('webcamRecording') ? sDim.height - wDim.height : sDim.height
+            height: config.get('rec.useWebcam') ? sDim.height - wDim.height : sDim.height
 
         };
+
         merger = new VideoStreamMerger();
         merger.setOutputSize(sDim.width + wDim.width, sDim.height);
 
@@ -45,7 +61,7 @@ export async function startStreams(sessID, sessData, errors, canvas) {
         canvasStream = canvas.captureStream(25);
         merger.addStream(canvasStream, { ...iDim, index: 1, mute: true });
 
-        if (config.get('webcamRecording')) {
+        if (config.get('useWebcam')) {
             webcamStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
             merger.addStream(webcamStream, { ...wDim, index: 2, mute: true });
         }
@@ -56,25 +72,31 @@ export async function startStreams(sessID, sessData, errors, canvas) {
         mergerRec.ondataavailable = (e) => { mergerRecBlobs.push(e.data); }
         mergerRec.onstop = async (e) => {
             if (merger) { 
-                merger.result.getTracks().forEach((track) => track.stop());
+                merger.result.getTracks().forEach(track => track.stop());
                 merger.destroy(); 
             }
             if (screenStream) {
-                screenStream.getTracks().forEach((track) => track.stop());
+                screenStream.getTracks().forEach(track => track.stop());
                 screenStream = null;
             }
             if (canvasStream) {
-                canvasStream.getTracks().forEach((track) => track.stop());
+                canvasStream.getTracks().forEach(track => track.stop());
                 canvasStream = null;
             }
             if (webcamStream) {
-                webcamStream.getTracks().forEach((track) => track.stop());
+                webcamStream.getTracks().forEach(track => track.stop());
                 webcamStream = null;
             }
 
+            const webm = `out/${sessID}/video.webm`;
+            const mp4 = `out/${sessID}/video.mp4`;
+
             const blob = new Blob(mergerRecBlobs, { type: recFormat });
             const buffer = await blob.arrayBuffer();
-            fs.writeFileSync(`out/${sessID}/video.webm`, Buffer.from(buffer));
+            fs.writeFileSync(webm, Buffer.from(buffer));
+            child.execFileSync(ffmpegPath, [ '-fflags', '+genpts', '-i', webm, '-r', '25', mp4 ]);
+            fs.removeSync(webm);
+            mergerRec.dispatchEvent(new Event('writeDone'));
         }
     } catch (e) {
         console.error(e);

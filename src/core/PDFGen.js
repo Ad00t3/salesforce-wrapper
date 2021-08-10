@@ -53,7 +53,7 @@ export async function genAuditLog(sessID, patientName, sessData) {
       page.drawText(`${startSplit[1]} EDT to ${endSplit[1]} EDT (${durationStr})`, { x: pdfX, y: pdfY, font: times, size: f2 }); pdfY -= ls2;
 
       page.drawText('Screen Recording?       YES', { x: pdfX, y: pdfY, font: times, size: f2 }); pdfY -= ls1;
-      page.drawText(`Webcam Recording?    ${config.get('webcamRecording') ? 'YES' : 'NO'}`, { x: pdfX, y: pdfY, font: times, size: f2 }); pdfY -= ls2;
+      page.drawText(`Webcam Recording?    ${config.get('useWebcam') ? 'YES' : 'NO'}`, { x: pdfX, y: pdfY, font: times, size: f2 }); pdfY -= ls2;
 
       const nowSplit = new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }).split(', ');
       page.drawText(`This work session time audit log was programmatically generated, without`, { x: pdfX, y: pdfY, font: timesBold, size: f3 }); pdfY -= ls3;
