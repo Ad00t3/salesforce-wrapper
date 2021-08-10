@@ -69,7 +69,10 @@ export async function onStart(workType, browser, canvas) {
     } else {
         fs.removeSync(`out/${sessID}`);
     }
-    return errors;
+    return { 
+                errors: errors,
+                sessData: { ...sessData, patientName: patientName, sessID: sessID }
+            };
 }
 
 
@@ -99,5 +102,5 @@ export async function onStop() {
 
     // Wrap up
     // fs.removeSync(`out/${sessID}`);
-    return errors;
+    return { errors: errors };
 }

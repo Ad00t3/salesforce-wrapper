@@ -41,6 +41,7 @@ export default function MainView({}) {
   const [workType, setWorkType] = useState('');
   const [loading, setLoading] = useState(false);
   const [startTime, setStartTime] = useState(-1);
+  const [sessData, setSessData] = useState({});
 
   const browserRef = useRef(null);
   const canvasRef = useRef(null);
@@ -71,24 +72,25 @@ export default function MainView({}) {
       reset();
       setStartTime(-1);
       setLoading(true);
-      const stopErrors = await WorkSess.onStop();
+      const { errors } = await WorkSess.onStop();
       setLoading(false);
-      if (stopErrors.length === 0) {
+      if (errors.length === 0) {
         success = true;
       } else {
-        raiseError(`Encountered error(s) while trying to stop work session: ${stopErrors.join(', ')}`);
+        raiseError(`Encountered error(s) while trying to stop work session: ${errors.join(', ')}`);
       }
     } else {
       if (browserRef.current.getURL().startsWith('https://assurehealth--hc.lightning.force.com/lightning/r/Account/')) {
         setLoading(true);
-        const startErrors = await WorkSess.onStart(workType, browserRef.current, canvasRef.current);
+        const { errors, sessData } = await WorkSess.onStart(workType, browserRef.current, canvasRef.current);
         setLoading(false);
-        if (startErrors.length === 0) {
+        setSessData(sessData);
+        if (errors.length === 0) {
           start();
           setStartTime(Date.now());
           success = true;
         } else {
-          raiseError(`Encountered error(s) while trying to start work session: ${startErrors.join(', ')}`);
+          raiseError(`Encountered error(s) while trying to start work session: ${errors.join(', ')}`);
         }
       } else {
         raiseError('A work session may only be started on a patient account page. Please navigate to one.');
@@ -195,6 +197,7 @@ export default function MainView({}) {
       <Canvas 
         isStarted={isStarted}
         startTime={startTime}
+        sessData={sessData}
         ref={canvasRef}
       />
     </div>
@@ -282,7 +285,7 @@ function WorkTypeComboBox({ workType, setWorkType }) {
   );
 }
 
-const Canvas = React.forwardRef(({ isStarted, startTime }, ref) => {  
+const Canvas = React.forwardRef(({ isStarted, startTime, sessData }, ref) => {  
   function draw(ctx) {
       // Background
       ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
@@ -290,13 +293,23 @@ const Canvas = React.forwardRef(({ isStarted, startTime }, ref) => {
       ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
 
       if (isStarted) {
-        // Timer
-        ctx.font = "26px Arial";
         ctx.fillStyle = 'white';
-        const { hours, minutes, seconds } = util.deconstructDuration(Math.round((Date.now() - startTime) / 1000.0));
-        ctx.fillText(`${hours}h ${minutes}m ${seconds}s`, 10, 36);
+        var x = 10, y = 32;
+        var ls1 = 24, ls2 = 18;
 
-        
+        ctx.font = "26px Arial";
+        const { hours, minutes, seconds } = util.deconstructDuration(Math.round((Date.now() - startTime) / 1000.0));
+        ctx.fillText(`${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`, x, y); y += ls1;
+
+        ctx.font = "13px Arial";
+        ctx.fillText(`Patient: ${sessData.patientName} (ID: ${sessData.patient_ID})`, x, y); y += ls2;
+        ctx.fillText(`Session ID: ${sessData.sessID}`, x, y); y += ls2;
+        const clinSplit = sessData.clinician_name.split(' ');
+        ctx.fillText(`Care Manager: ${clinSplit[1]}, ${clinSplit[0]}`, x, y); y += ls2;
+        ctx.fillText(`Work Performed By: ${sessData.clinician_name}`, x, y); y += ls2;
+        const timeStr = new Date(sessData.start_time).toLocaleTimeString('en-US');
+        const durationStr = `${hours} hr, ${minutes} min, ${seconds} sec`;
+        ctx.fillText(`Started: ${timeStr} EDT (${durationStr})`, x, y);
       }
   }
   
@@ -314,11 +327,14 @@ const Canvas = React.forwardRef(({ isStarted, startTime }, ref) => {
     }
   }, [draw]);
 
+  const sWidth = 1280, sHeight = 720;
+  const f = 3.5;
+
   return (
     <canvas 
       ref={ref} 
-      width={500} 
-      height={500} 
+      width={sWidth / f} 
+      height={config.get('webcamRecording') ? sHeight - (sHeight / f) : sHeight} 
     />
   );
 });

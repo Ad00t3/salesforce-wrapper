@@ -16,21 +16,38 @@ export async function startStreams(sessID, sessData, errors, canvas) {
     mergerRecBlobs = [];
 
     try {
-        const { width, height } = screen.getPrimaryDisplay().workAreaSize;
-        const factor = 4.5;
-        const wWidth = width / factor, wHeight = height / factor;
+        const sDim = {
+            x: 0,
+            y: 0,
+            width: 1280,
+            height: 720
+        };
+        const f = 3.5;
+        const wDim = {
+            x: sDim.width,
+            y: 0,
+            width: sDim.width / f,
+            height: sDim.height / f
+        };
+        const iDim = {
+            x: wDim.x,
+            y: config.get('webcamRecording') ? wDim.height : 0,
+            width: wDim.width,
+            height: config.get('webcamRecording') ? sDim.height - wDim.height : sDim.height
+
+        };
         merger = new VideoStreamMerger();
-        merger.setOutputSize(width, height);
+        merger.setOutputSize(sDim.width + wDim.width, sDim.height);
 
         screenStream = await navigator.mediaDevices.getUserMedia({ video: { mandatory: { chromeMediaSource: 'desktop', chromeMediaSourceId: 'screen:0:0' }}, audio: false });
-        merger.addStream(screenStream, { x: 0, y: 0, width: merger.width, height: merger.height, index: 0, mute: true });
+        merger.addStream(screenStream, { ...sDim, index: 0, mute: true });
 
         canvasStream = canvas.captureStream(25);
-        merger.addStream(canvasStream, { x: merger.width - wWidth, y: config.get('webcamRecording') ? wHeight : 0, width: wWidth, height: wWidth, index: 1, mute: true });
+        merger.addStream(canvasStream, { ...iDim, index: 1, mute: true });
 
         if (config.get('webcamRecording')) {
             webcamStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-            merger.addStream(webcamStream, { x: merger.width - wWidth, y: 0, width: wWidth, height: wHeight, index: 2, mute: true });
+            merger.addStream(webcamStream, { ...wDim, index: 2, mute: true });
         }
 
         merger.start();
