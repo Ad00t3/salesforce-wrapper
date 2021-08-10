@@ -32,87 +32,7 @@ import Timer from 'react-compound-timer';
 import WebView from 'react-electron-web-view';
 import * as WorkSess from '../core/WorkSess';
 import config from '../config/config';
-
-function Alert(props) {
-  return <MuiAlert elevation={6} variant="filled" {...props} />;
-}
-
-function ConfigMenu({}) {
-  const [state, setState] = useState({
-    webcamRecording: config.get('webcamRecording')
-  });
-
-  const handleFormToggle = (event) => {
-    setState({ ...state, [event.target.name]: event.target.checked });
-    config.set(event.target.name, event.target.checked)
-  };
-
-  return (
-    <div>
-      <FormControlLabel
-        control={<Switch checked={state.webcamRecording} onChange={handleFormToggle} name="webcamRecording" />}
-        label="Record Webcam"
-      />
-    </div>
-  );
-}
-
-function WorkTypeComboBox({ workType, setWorkType }) {
-  const filter = createFilterOptions();
-
-  useEffect(() => {
-    const workTypes = config.get('workTypes');
-    if (workTypes.length > 0)
-      setWorkType(workTypes[0]);
-  });
-
-  return (
-    <Autocomplete
-      value={workType}
-      onChange={(event, newValue) => {
-        if (newValue) {
-          if (newValue.inputValue) {
-            setWorkType(newValue.inputValue);  
-            config.set('workTypes', [ ...config.get('workTypes'), newValue.inputValue ]);
-          } else {
-            setWorkType(newValue);
-          }
-        }
-      }}
-      filterOptions={(options, params) => {
-        const filtered = filter(options, params);
-        // Suggest the creation of a new value
-        if (params.inputValue !== '') {
-          filtered.push({
-            inputValue: params.inputValue,
-            title: `Add "${params.inputValue}"`,
-          });
-        }
-        return filtered;
-      }}
-      selectOnFocus
-      clearOnBlur
-      handleHomeEndKeys
-      options={config.get('workTypes')}
-      getOptionLabel={(option) => {
-        // Value selected with enter, right from the input
-        if (typeof option === 'string')
-          return option;
-        // Add "xxx" option created dynamically
-        if (option.inputValue)
-          return option.inputValue;
-        // Regular option
-        return option.title;
-      }}
-      renderOption={(option) => option.title || option}
-      style={{ width: 300 }}
-      freeSolo
-      renderInput={(params) => (
-        <TextField {...params} label="Activity Type" variant="outlined" />
-      )}
-    />
-  );
-}
+import * as util from '../util/util';
 
 export default function MainView({}) {
   const [isStarted, setIsStarted] = useState(false);
@@ -120,8 +40,10 @@ export default function MainView({}) {
   const [configOpen, setConfigOpen] = useState(false);
   const [workType, setWorkType] = useState('');
   const [loading, setLoading] = useState(false);
+  const [startTime, setStartTime] = useState(-1);
 
-  var browser = null;
+  const browserRef = useRef(null);
+  const canvasRef = useRef(null);
 
   function raiseError(msg) {
     const split = msg.split(' ');
@@ -147,6 +69,7 @@ export default function MainView({}) {
     if (isStarted) {
       stop();
       reset();
+      setStartTime(-1);
       setLoading(true);
       const stopErrors = await WorkSess.onStop();
       setLoading(false);
@@ -156,12 +79,13 @@ export default function MainView({}) {
         raiseError(`Encountered error(s) while trying to stop work session: ${stopErrors.join(', ')}`);
       }
     } else {
-      if (browser.getURL().startsWith('https://assurehealth--hc.lightning.force.com/lightning/r/Account/')) {
+      if (browserRef.current.getURL().startsWith('https://assurehealth--hc.lightning.force.com/lightning/r/Account/')) {
         setLoading(true);
-        const startErrors = await WorkSess.onStart(workType, browser);
+        const startErrors = await WorkSess.onStart(workType, browserRef.current, canvasRef.current);
         setLoading(false);
         if (startErrors.length === 0) {
           start();
+          setStartTime(Date.now());
           success = true;
         } else {
           raiseError(`Encountered error(s) while trying to start work session: ${startErrors.join(', ')}`);
@@ -264,10 +188,137 @@ export default function MainView({}) {
           width: '100vw',
           height: 'calc(100% - 93px)'
         }}
-        ref={node => { browser = node }}
+        ref={browserRef}
         disablewebsecurity
         allowpopups
+      />
+      <Canvas 
+        isStarted={isStarted}
+        startTime={startTime}
+        ref={canvasRef}
       />
     </div>
   );
 }
+
+function Alert(props) {
+  return <MuiAlert elevation={6} variant="filled" {...props} />;
+}
+
+function ConfigMenu({}) {
+  const [state, setState] = useState({
+    webcamRecording: config.get('webcamRecording')
+  });
+
+  const handleFormToggle = (event) => {
+    setState({ ...state, [event.target.name]: event.target.checked });
+    config.set(event.target.name, event.target.checked)
+  };
+
+  return (
+    <div>
+      <FormControlLabel
+        control={<Switch checked={state.webcamRecording} onChange={handleFormToggle} name="webcamRecording" />}
+        label="Record Webcam"
+      />
+    </div>
+  );
+}
+
+function WorkTypeComboBox({ workType, setWorkType }) {
+  const filter = createFilterOptions();
+
+  useEffect(() => {
+    const workTypes = config.get('workTypes');
+    if (workTypes.length > 0)
+      setWorkType(workTypes[0]);
+  });
+
+  return (
+    <Autocomplete
+      value={workType}
+      onChange={(event, newValue) => {
+        if (newValue) {
+          if (newValue.inputValue) {
+            setWorkType(newValue.inputValue);  
+            config.set('workTypes', [ ...config.get('workTypes'), newValue.inputValue ]);
+          } else {
+            setWorkType(newValue);
+          }
+        }
+      }}
+      filterOptions={(options, params) => {
+        const filtered = filter(options, params);
+        // Suggest the creation of a new value
+        if (params.inputValue !== '') {
+          filtered.push({
+            inputValue: params.inputValue,
+            title: `Add "${params.inputValue}"`,
+          });
+        }
+        return filtered;
+      }}
+      selectOnFocus
+      clearOnBlur
+      handleHomeEndKeys
+      options={config.get('workTypes')}
+      getOptionLabel={(option) => {
+        // Value selected with enter, right from the input
+        if (typeof option === 'string')
+          return option;
+        // Add "xxx" option created dynamically
+        if (option.inputValue)
+          return option.inputValue;
+        // Regular option
+        return option.title;
+      }}
+      renderOption={(option) => option.title || option}
+      style={{ width: 300 }}
+      freeSolo
+      renderInput={(params) => (
+        <TextField {...params} label="Activity Type" variant="outlined" />
+      )}
+    />
+  );
+}
+
+const Canvas = React.forwardRef(({ isStarted, startTime }, ref) => {  
+  function draw(ctx) {
+      // Background
+      ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+      ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
+      ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+
+      if (isStarted) {
+        // Timer
+        ctx.font = "26px Arial";
+        ctx.fillStyle = 'white';
+        const { hours, minutes, seconds } = util.deconstructDuration(Math.round((Date.now() - startTime) / 1000.0));
+        ctx.fillText(`${hours}h ${minutes}m ${seconds}s`, 10, 36);
+
+        
+      }
+  }
+  
+  useEffect(() => {
+    const context = ref.current.getContext('2d');
+    context.canvas.hidden = true;
+    let animationFrameId;
+    function render() {
+      draw(context);
+      animationFrameId = window.requestAnimationFrame(render);
+    }
+    render();
+    return () => {
+      window.cancelAnimationFrame(animationFrameId);
+    }
+  }, [draw]);
+
+  return (
+    <canvas 
+      ref={ref} 
+      width={500} 
+      height={500} 
+    />
+  );
+});

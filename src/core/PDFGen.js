@@ -1,5 +1,6 @@
 import { PDFDocument, StandardFonts } from 'pdf-lib';
 import config from '../config/config';
+import * as util from '../util/util';
 
 const fs = require('fs');
 
@@ -41,9 +42,7 @@ export async function genAuditLog(sessID, patientName, sessData) {
       page.drawText(`Date of Work Session: ${startSplit[0]}`, { x: pdfX, y: pdfY, font: times, size: f2 }); pdfY -= ls1;
       page.drawText(`Work Session ID: ${sessID}`, { x: pdfX, y: pdfY, font: times, size: f2 }); pdfY -= ls2;
 
-      const hours = Math.floor(sessData.duration / 3600);
-      const minutes = Math.floor((sessData.duration % 3600) / 60);
-      const seconds = sessData.duration % 60;
+      const { hours, minutes, seconds } = util.deconstructDuration(sessData.duration);
       const durationStr = `${hours} hr, ${minutes} min, ${seconds} sec`;
       page.drawText(`Total Duration of Work Session: ${durationStr}`, { x: pdfX, y: pdfY, font: times, size: f2 }); pdfY -= ls2;
 

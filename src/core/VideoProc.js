@@ -6,18 +6,18 @@ const VideoStreamMerger = require('video-stream-merger').VideoStreamMerger;
 
 const recFormat = 'video/webm; codecs=vp9';
 var merger, mergerRec;
-var screenStream, webcamStream;
+var screenStream, webcamStream, canvasStream;
 var mergerRecBlobs = [];
 
 // Start streams & merger
-export async function startStreams(sessID, sessData, errors) {
+export async function startStreams(sessID, sessData, errors, canvas) {
     merger = null; mergerRec = null;
-    screenStream = null; webcamStream = null;
+    screenStream = null; webcamStream = null, canvasStream = null;
     mergerRecBlobs = [];
 
     try {
         const { width, height } = screen.getPrimaryDisplay().workAreaSize;
-        const factor = 4;
+        const factor = 4.5;
         const wWidth = width / factor, wHeight = height / factor;
         merger = new VideoStreamMerger();
         merger.setOutputSize(width, height);
@@ -25,9 +25,12 @@ export async function startStreams(sessID, sessData, errors) {
         screenStream = await navigator.mediaDevices.getUserMedia({ video: { mandatory: { chromeMediaSource: 'desktop', chromeMediaSourceId: 'screen:0:0' }}, audio: false });
         merger.addStream(screenStream, { x: 0, y: 0, width: merger.width, height: merger.height, index: 0, mute: true });
 
+        canvasStream = canvas.captureStream(25);
+        merger.addStream(canvasStream, { x: merger.width - wWidth, y: config.get('webcamRecording') ? wHeight : 0, width: wWidth, height: wWidth, index: 1, mute: true });
+
         if (config.get('webcamRecording')) {
             webcamStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-            merger.addStream(webcamStream, { x: merger.width - wWidth, y: 0, width: wWidth, height: wHeight, index: 1, mute: true });
+            merger.addStream(webcamStream, { x: merger.width - wWidth, y: 0, width: wWidth, height: wHeight, index: 2, mute: true });
         }
 
         merger.start();
@@ -42,6 +45,10 @@ export async function startStreams(sessID, sessData, errors) {
             if (screenStream) {
                 screenStream.getTracks().forEach((track) => track.stop());
                 screenStream = null;
+            }
+            if (canvasStream) {
+                canvasStream.getTracks().forEach((track) => track.stop());
+                canvasStream = null;
             }
             if (webcamStream) {
                 webcamStream.getTracks().forEach((track) => track.stop());

@@ -32,7 +32,7 @@ async function resetSess() {
 }
 
 // When timer starts
-export async function onStart(workType, browser) {
+export async function onStart(workType, browser, canvas) {
     // Session init
     const errors = [];
     await resetSess();
@@ -62,7 +62,7 @@ export async function onStart(workType, browser) {
     }
 
     // Start streams & recording
-    mergerRec = await VideoProc.startStreams(sessID, sessData, errors);
+    mergerRec = await VideoProc.startStreams(sessID, sessData, errors, canvas);
     if (errors.length === 0) {
         if (mergerRec) mergerRec.start();
         sessData.start_time = new Date();
