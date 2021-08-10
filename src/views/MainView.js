@@ -307,7 +307,7 @@ const Canvas = React.forwardRef(({ isStarted, startTime, sessData }, ref) => {
         const clinSplit = sessData.clinician_name.split(' ');
         ctx.fillText(`Care Manager: ${clinSplit[1]}, ${clinSplit[0]}`, x, y); y += ls2;
         ctx.fillText(`Work Performed By: ${sessData.clinician_name}`, x, y); y += ls2;
-        const timeStr = new Date(sessData.start_time).toLocaleTimeString('en-US');
+        const timeStr = new Date(sessData.start_time).toLocaleTimeString('en-US', { timeZone: 'America/New_York' });
         const durationStr = `${hours} hr, ${minutes} min, ${seconds} sec`;
         ctx.fillText(`Started: ${timeStr} EDT (${durationStr})`, x, y);
       }
