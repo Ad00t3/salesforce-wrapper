@@ -11,13 +11,14 @@ var mergerRec;
 
 var sessID = '';
 var patientName = '';
+var profileURL;
 var sessData = {};
 var errors = [];
 
 async function resetSess() {
     sessID = '';
     patientName = '';
-    const pjson = require('../../package.json');
+    profileURL = '';
     sessData = {
         start_time: '',
         end_time: '',
@@ -25,7 +26,7 @@ async function resetSess() {
         patient_ID: '',
         clinician_name: '',
         work_type: '',
-        log_method: `${pjson.productName} v${pjson.version}`,
+        log_method: config.get('title'),
         clinician_IP: (await publicIp.v4()),
         pdf_audit: '',
         video_audit: ''
@@ -51,12 +52,11 @@ export async function onStart(workType, browser, canvas) {
 
     // Get clinician name
     await browser.executeJavaScript('document.querySelector("button.branding-userProfile-button").click()');
-    while (sessData.clinician_name == null || sessData.clinician_name === '') {
+    while (sessData.clinician_name === '') {
         sessData.clinician_name = await browser.executeJavaScript(`
             (() => {
-                let cardName = document.querySelector("h1.profile-card-name");
-                if (cardName && cardName.textContent) 
-                    return cardName.textContent;
+                let profileHref = document.querySelector("a.profile-link-label");
+                if (profileHref && profileHref.innerHTML) return profileHref.innerHTML;
                 return "";
             })();
         `);
@@ -68,7 +68,7 @@ export async function onStart(workType, browser, canvas) {
         if (mergerRec) mergerRec.start();
         sessData.start_time = new Date();
     } else {
-        fs.removeSync(`out/${sessID}`);
+        fs.removeSync(`out/${sessID}/`);
     }
     return { errors: errors, sessData: { ...sessData, patientName: patientName, sessID: sessID } };
 }
@@ -91,18 +91,18 @@ export function onStop() {
         mergerRec.addEventListener('writeDone', async (e) => {
             // Send files to Box.com API
             await BoxApi.initFolder(sessID, errors);
-            sessData.video_audit = await BoxApi.upload('video.mp4') || '';
+            sessData.video_audit = (await BoxApi.upload('video.mp4')) || '';
             await PDFGen.genAuditLog(sessID, patientName, sessData);
-            sessData.pdf_audit = await BoxApi.upload('audit.pdf') || '';
+            sessData.pdf_audit = (await BoxApi.upload('audit.pdf')) || '';
 
             if (errors.length === 0) {
                 // Send JSON payload to salesforce endpoint (via AWS Lambda)
                 console.log('send');
+                fs.removeSync(`out/${sessID}/`);
             }
             
             // Wrap up
             console.log(sessData);
-            fs.removeSync(`out/${sessID}`);
             mergerRec = null;
             resolve({ errors: errors }); // done
         });

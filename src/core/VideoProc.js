@@ -2,7 +2,7 @@ import config from '../config/config';
 
 const fs = require('fs-extra');
 const path = require('path');
-const { remote } = require('electron');
+const { remote, desktopCapturer } = require('electron');
 const { screen } = remote;
 const VideoStreamMerger = require('video-stream-merger').VideoStreamMerger;
 const child = require('child_process');
@@ -49,13 +49,16 @@ export async function startStreams(sessID, sessData, errors, canvas) {
             y: config.get('rec.useWebcam') ? wDim.height : 0,
             width: wDim.width,
             height: config.get('rec.useWebcam') ? sDim.height - wDim.height : sDim.height
-
         };
 
         merger = new VideoStreamMerger();
         merger.setOutputSize(sDim.width + wDim.width, sDim.height);
 
-        screenStream = await navigator.mediaDevices.getUserMedia({ video: { mandatory: { chromeMediaSource: 'desktop', chromeMediaSourceId: 'screen:0:0' }}, audio: false });
+        const sources = await desktopCapturer.getSources({ types: ['window', 'screen'] });
+        const winID = sources.filter(win => win.name === config.get('title'))[0].id;
+        const nScreen = winID.substring(winID.lastIndexOf(':') + 1, winID.length);
+        
+        screenStream = await navigator.mediaDevices.getUserMedia({ video: { mandatory: { chromeMediaSource: 'desktop', chromeMediaSourceId: `screen:${nScreen || '0'}:0` }}, audio: false });
         merger.addStream(screenStream, { ...sDim, index: 0, mute: true });
 
         canvasStream = canvas.captureStream(25);

@@ -2,6 +2,7 @@ const Store = require('electron-store');
 
 const config = new Store({
   schema: {
+    title: { type: 'string' },
     workTypes: { 
       type: 'array',
       items: { type: 'string' }
@@ -17,6 +18,7 @@ const config = new Store({
     }
   },
   defaults: {
+    title: '',
     workTypes: [],
     rec: {
       useWebcam: false,
@@ -26,5 +28,8 @@ const config = new Store({
     }
   }
 });
+
+const pjson = require('../../package.json');
+config.set('title', `${pjson.productName} v${pjson.version}`);
 
 export default config; 

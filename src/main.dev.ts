@@ -15,6 +15,7 @@ import { app, BrowserWindow, shell } from 'electron';
 import { autoUpdater } from 'electron-updater';
 import log from 'electron-log';
 import Store from 'electron-store';
+import config from './config/config';
 
 Store.initRenderer();
 
@@ -69,9 +70,8 @@ const createWindow = async () => {
     return path.join(RESOURCES_PATH, ...paths);
   };
 
-  const pjson = require('../package.json');
   win = new BrowserWindow({
-    title: `${pjson.productName} v${pjson.version}`,
+    title: `${config.get('title')}`,
     width: 1366,
     height: 768,
     show: false,
