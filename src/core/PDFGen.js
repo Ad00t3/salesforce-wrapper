@@ -5,7 +5,7 @@ import * as util from '../util/util';
 const fs = require('fs');
 
 // Generate audit log PDF
-export async function genAuditLog(session, filePath) {
+export async function genAuditLog(session) {
       const pdf = await PDFDocument.create();
 
       const timesBold = await pdf.embedFont(StandardFonts.TimesRomanBold);
@@ -59,5 +59,5 @@ export async function genAuditLog(session, filePath) {
       page.drawText(`This work session time audit log was programmatically generated, without`, { x: pdfX, y: pdfY, font: timesBold, size: f3 }); pdfY -= ls3;
       page.drawText(`human intervention, by tamper-proof software on ${nowSplit[0]} at ${nowSplit[1]} EDT`, { x: pdfX, y: pdfY, font: timesBold, size: f3 });
 
-      fs.writeFileSync(filePath, await pdf.save());
+      fs.writeFileSync(session.p.sess('audit.pdf'), await pdf.save());
 }

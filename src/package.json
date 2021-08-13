@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "description": "Cross-platform salesforce website wrapper/time tracker",
   "main": "./main.prod.js",
-  "author": "Ad00t",
+  "author": "Assure Health",
   "scripts": {
     "electron-rebuild": "node -r ../.erb/scripts/BabelRegister.js ../.erb/scripts/ElectronRebuild.js",
     "postinstall": "yarn electron-rebuild"

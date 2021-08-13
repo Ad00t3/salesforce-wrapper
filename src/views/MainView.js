@@ -44,11 +44,10 @@ export default function MainView({}) {
   const [startTime, setStartTime] = useState(-1);
   const [session, setSession] = useState({});
   const [alertCacheOpen, setAlertCacheOpen] = useState(false);
+  const [resolveAlertCache, setResolveAlertCache] = useState(null);
 
   const browserRef = useRef(null);
   const canvasRef = useRef(null);
-
-  var resolveAlertCache;
 
   function raiseError(msg) {
     const split = msg.split(' ');
@@ -69,7 +68,7 @@ export default function MainView({}) {
 
   function alertCache() {
     return new Promise((resolve, reject) => {
-      resolveAlertCache = resolve;
+      setResolveAlertCache(resolve);
       setAlertCacheOpen(true);
     })
   }
@@ -174,6 +173,7 @@ export default function MainView({}) {
         open={alertCacheOpen}
         setOpen={setAlertCacheOpen}
         resolveAlertCache={resolveAlertCache}
+        setResolveAlertCache={setResolveAlertCache}
       />
       <PuffLoader
         color={colors.purple[700]}
@@ -209,13 +209,14 @@ function Alert(props) {
   return <MuiAlert elevation={6} variant="filled" {...props} />;
 }
 
-function AlertCache({ open, setOpen, resolveAlertCache }) {
+function AlertCache({ open, setOpen, resolveAlertCache, setResolveAlertCache }) {
   const theme = useTheme();
   const fullScreen = useMediaQuery(theme.breakpoints.down('sm'));
 
   function handleClose(isNewSession) {
     setOpen(false);
     resolveAlertCache(isNewSession);
+    setResolveAlertCache(null);
   };
 
   return (

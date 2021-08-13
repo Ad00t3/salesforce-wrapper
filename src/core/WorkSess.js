@@ -8,14 +8,15 @@ const fs = require('fs-extra');
 const path = require('path');
 const randstring = require('randomstring');
 const publicIp = require('public-ip');
-const { app } = require('electron');
+const { remote } = require('electron');
+const app = remote.app;
 
 var mergerRec;
 var session = {};
 var errors = [];
 
 const pOut = p => path.join(app.getPath('userData'), 'out', p || '');
-const pSess = fileName => path.join(pOut(session.id), fileName);
+const pSess = fileName => path.join(pOut(session.id), fileName || '');
 
 async function resetSession() {
     session = {
@@ -48,10 +49,9 @@ export async function onStart(workType, browser, canvas, cacheCB) {
     var isNewSession = true;
 
     // Check if there's a cached session
-    console.log(pOut()); console.log(pSess());
-    const foldersInOut = fs.readdirSync(pOut(), { withFileTypes: true })
+    const foldersInOut = fs.existsSync(pOut()) ? fs.readdirSync(pOut(), { withFileTypes: true })
                             .filter(dirent => dirent.isDirectory())
-                            .map(dirent => dirent.name);
+                            .map(dirent => dirent.name) : [];
     if (foldersInOut.length > 0)
         isNewSession = await cacheCB();
 
@@ -63,15 +63,29 @@ export async function onStart(workType, browser, canvas, cacheCB) {
 
         // Initial information
         session.patientName = browser.getTitle();
-        session.patientName = patientName.substring(0, patientName.indexOf('|')).trim();
-        session.payload.patient_ID = browser.getURL().replace('https://assurehealth--hc.lightning.force.com/lightning/r/Account/', '').replace('/view', '');
+        session.patientName = session.patientName.substring(0, session.patientName.indexOf('|')).trim();
+        const pURL = browser.getURL();
+        session.payload.patient_ID = pURL.replace('https://assurehealth--hc.lightning.force.com/lightning/r/Account/', '').replace('/view', '');
         session.payload.work_type = workType;
         if (session.payload.work_type === '')
             errors.push('invalid-activity-type');
 
         // Get clinician name
-        await browser.executeJavaScript('document.querySelector("button.branding-userProfile-button").click()');
-        while ( session.payload.clinician_name === '') {
+        // await browser.loadURL('https://assurehealth--hc.lightning.force.com/lightning/settings/personal/PersonalInformation/home');
+        // while (true) {
+        //     session.payload.clinician_name = await browser.executeJavaScript(`
+        //         (() => {
+        //             setTimeout(() => {
+        //                 return [...document.querySelectorAll("input")].length;
+        //             }, 1000);
+        //         })();
+        //     `);
+        //     console.log(session.payload.clinician_name);
+        // }   
+        // await browser.loadURL(pURL);
+
+        await browser.executeJavaScript('document.querySelector("button.branding-userProfile-button").click();');
+        while (session.payload.clinician_name === '') {
             session.payload.clinician_name = await browser.executeJavaScript(`
                 (() => {
                     const nameCard = document.querySelector("h1.profile-card-name");
@@ -79,7 +93,7 @@ export async function onStart(workType, browser, canvas, cacheCB) {
                     return "";
                 })();
             `);
-        }   
+        }
 
         session.payload.start_time = new Date();
         fs.writeFileSync(pSess('session.json'), JSON.stringify(session));
@@ -90,7 +104,7 @@ export async function onStart(workType, browser, canvas, cacheCB) {
     // Start streams & recording
     mergerRec = await VideoProc.startStreams(session, errors, canvas);
     if (errors.length === 0) {
-        if (mergerRec) mergerRec.start();
+        if (mergerRec) mergerRec.start(1000);
     } else {
         fs.removeSync(pSess());
     }
