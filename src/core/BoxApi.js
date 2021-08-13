@@ -2,64 +2,23 @@ const fs = require('fs');
 const path = require('path');
 const BoxSDK = require('box-node-sdk');
 const crypto = require('crypto');
-const jwt = require('jsonwebtoken');
 const randstring = require('randomstring');
 
 const boxConfig = require('../config/529616378_en3h9wn8_config.json');
-const authURL = 'https://api.box.com/oauth2/token';
-const userID = '16850231633';
 const sdk = BoxSDK.getPreconfiguredInstance(boxConfig);
 
-var client;
-var dir;
-var folder;
 var errors;
+var session;
+var client;
+var folder;
 
 // Connect to Box.com API & create folder
-export async function initFolder(sessID, errorsP) {
+export async function initFolder(sessionP, errorsP) {
     try {
         errors = errorsP;
-
-        // const assertion = jwt.sign({
-        //     iss: boxConfig.boxAppSettings.clientID,
-        //     sub: userID,
-        //     box_sub_type: 'user',
-        //     aud: authURL,
-        //     jti: crypto.randomBytes(64).toString('hex'),
-        //     exp: Math.floor(Date.now() / 1000) + 45
-        // }, {
-        //     key: boxConfig.boxAppSettings.appAuth.privateKey,
-        //     passphrase: boxConfig.boxAppSettings.appAuth.passphrase
-        // }, {
-        //     'algorithm': 'RS384',
-        //     'keyid': boxConfig.boxAppSettings.appAuth.publicKeyID,
-        // });
-
-        // const accessToken = (await fetch(authURL, {
-        //     method: 'POST',
-        //     headers: {
-        //         'Content-Type': 'application/x-www-form-urlencoded'
-        //     },
-        //     body: JSON.stringify({
-        //         grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
-        //         assertion: assertion,
-        //         client_id: boxConfig.boxAppSettings.clientID,
-        //         client_secret: boxConfig.boxAppSettings.clientSecret
-        //     })
-        // }));
-        // console.log(accessToken);
-
-        // let data = (await axios.get(
-        //     'https://api.box.com/2.0/folders/142933730580', {
-        //     headers: { 'Authorization' : `Bearer ${accessToken}` }
-        // })).data;
-        // console.log(data)
-        
-        
-
-        client = sdk.getAppAuthClient('user', userID);
-        dir = `out/${sessID}`;
-        folder = await client.folders.create('142933730580', sessID);
+        session = sessionP;
+        client = sdk.getAppAuthClient('user', '16850231633');
+        folder = await client.folders.create('142933730580', session.id);
     } catch (e) {
         errors.push('box-init-failed');
         console.error(e);
@@ -71,7 +30,7 @@ export async function upload(fileName) {
     try {
         var fileObj;
         const accessToken = await client._session.getAccessToken(client._tokenOptions);
-        const f = fs.readFileSync(path.join(dir, fileName));
+        const f = fs.readFileSync(session.p.sess(fileName));
 
         if (f.length < 20000000) {
             const formData = new FormData();

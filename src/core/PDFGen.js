@@ -5,7 +5,7 @@ import * as util from '../util/util';
 const fs = require('fs');
 
 // Generate audit log PDF
-export async function genAuditLog(sessID, patientName, sessData) {
+export async function genAuditLog(session, filePath) {
       const pdf = await PDFDocument.create();
 
       const timesBold = await pdf.embedFont(StandardFonts.TimesRomanBold);
@@ -28,25 +28,25 @@ export async function genAuditLog(sessID, patientName, sessData) {
       page.drawText('Work Session Time Audit Log', { x: pdfX, y: pdfY, size: 16, font: timesBold, size: f1 }); pdfY -= ls1;
       page.drawText('Remote Patient Monitoring Clinical Work', { x: pdfX, y: pdfY, size: 16, font: timesBold, size: f1 }); pdfY -= ls2;
 
-      page.drawText(`Patient Name: ${patientName}`, { x: pdfX, y: pdfY, font: times, size: f2 }); pdfY -= ls1;
-      const split = sessData.clinician_name.split(' ');
+      page.drawText(`Patient Name: ${session.patientName}`, { x: pdfX, y: pdfY, font: times, size: f2 }); pdfY -= ls1;
+      const split = session.payload.clinician_name.split(' ');
       page.drawText(`Care Manager: ${split[1]}, ${split[0]}`, { x: pdfX, y: pdfY, font: times, size: f2 }); pdfY -= ls1;
-      page.drawText(`Activity Type: ${sessData.work_type}`, { x: pdfX, y: pdfY, font: times, size: f2 }); pdfY -= ls2;
+      page.drawText(`Activity Type: ${session.payload.work_type}`, { x: pdfX, y: pdfY, font: times, size: f2 }); pdfY -= ls2;
 
-      page.drawText(`Time Logged By: ${sessData.clinician_name}`, { x: pdfX, y: pdfY, font: times, size: f2 }); pdfY -= ls1;
-      page.drawText(`IP Address: ${sessData.clinician_IP}`, { x: pdfX, y: pdfY, font: times, size: f2 }); pdfY -= ls1;
-      page.drawText(`Audit Software Version: ${sessData.log_method}`, { x: pdfX, y: pdfY, font: times, size: f2 }); pdfY -= ls2;
+      page.drawText(`Time Logged By: ${session.payload.clinician_name}`, { x: pdfX, y: pdfY, font: times, size: f2 }); pdfY -= ls1;
+      page.drawText(`IP Address: ${session.payload.clinician_IP}`, { x: pdfX, y: pdfY, font: times, size: f2 }); pdfY -= ls1;
+      page.drawText(`Audit Software Version: ${session.payload.log_method}`, { x: pdfX, y: pdfY, font: times, size: f2 }); pdfY -= ls2;
 
-      const startSplit = sessData.start_time.split(', ');
-      const endSplit = sessData.end_time.split(', ');
+      const startSplit = session.payload.start_time.split(', ');
+      const endSplit = session.payload.end_time.split(', ');
       page.drawText(`Date of Work Session: ${startSplit[0]}`, { x: pdfX, y: pdfY, font: times, size: f2 }); pdfY -= ls1;
-      page.drawText(`Work Session ID: ${sessID}`, { x: pdfX, y: pdfY, font: times, size: f2 }); pdfY -= ls2;
+      page.drawText(`Work Session ID: ${session.id}`, { x: pdfX, y: pdfY, font: times, size: f2 }); pdfY -= ls2;
 
-      const { hours, minutes, seconds } = util.deconstructDuration(sessData.duration);
+      const { hours, minutes, seconds } = util.deconstructDuration(session.payload.duration);
       const durationStr = `${hours} hr, ${minutes} min, ${seconds} sec`;
       page.drawText(`Total Duration of Work Session: ${durationStr}`, { x: pdfX, y: pdfY, font: times, size: f2 }); pdfY -= ls2;
 
-      page.drawText(`Video Audit Log: ${sessData.video_audit}`, { x: pdfX, y: pdfY, font: times, size: f2 }); pdfY -= ls2;
+      page.drawText(`Video Audit Log: ${session.payload.video_audit}`, { x: pdfX, y: pdfY, font: times, size: f2 }); pdfY -= ls2;
 
       page.drawText('AUDIT LOG:', { x: pdfX, y: pdfY, font: times, size: f2 }); pdfY -= ls2;
 
@@ -59,5 +59,5 @@ export async function genAuditLog(sessID, patientName, sessData) {
       page.drawText(`This work session time audit log was programmatically generated, without`, { x: pdfX, y: pdfY, font: timesBold, size: f3 }); pdfY -= ls3;
       page.drawText(`human intervention, by tamper-proof software on ${nowSplit[0]} at ${nowSplit[1]} EDT`, { x: pdfX, y: pdfY, font: timesBold, size: f3 });
 
-      fs.writeFileSync(`out/${sessID}/audit.pdf`, await pdf.save());
+      fs.writeFileSync(filePath, await pdf.save());
 }

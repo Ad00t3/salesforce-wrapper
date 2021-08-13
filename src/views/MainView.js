@@ -14,15 +14,17 @@ import FormControlLabel from '@material-ui/core/FormControlLabel';
 import Switch from '@material-ui/core/Switch';
 import Autocomplete, { createFilterOptions } from '@material-ui/lab/Autocomplete';
 import TextField from '@material-ui/core/TextField';
+
 import Dialog from '@material-ui/core/Dialog';
 import DialogActions from '@material-ui/core/DialogActions';
 import DialogContent from '@material-ui/core/DialogContent';
 import DialogContentText from '@material-ui/core/DialogContentText';
 import DialogTitle from '@material-ui/core/DialogTitle';
+import useMediaQuery from '@material-ui/core/useMediaQuery';
+import { useTheme } from '@material-ui/core/styles';
 
 import PlayArrow from '@material-ui/icons/PlayArrow';
 import Stop from '@material-ui/icons/Stop';
-import Settings from '@material-ui/icons/Settings';
 
 import { makeStyles } from '@material-ui/core/styles';
 import * as colors from '@material-ui/core/colors';
@@ -37,14 +39,16 @@ import * as util from '../util/util';
 export default function MainView({}) {
   const [isStarted, setIsStarted] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
-  const [configOpen, setConfigOpen] = useState(false);
   const [workType, setWorkType] = useState('');
   const [loading, setLoading] = useState(false);
   const [startTime, setStartTime] = useState(-1);
-  const [sessData, setSessData] = useState({});
+  const [session, setSession] = useState({});
+  const [alertCacheOpen, setAlertCacheOpen] = useState(false);
 
   const browserRef = useRef(null);
   const canvasRef = useRef(null);
+
+  var resolveAlertCache;
 
   function raiseError(msg) {
     const split = msg.split(' ');
@@ -63,11 +67,18 @@ export default function MainView({}) {
       raiseError('');
   }
 
+  function alertCache() {
+    return new Promise((resolve, reject) => {
+      resolveAlertCache = resolve;
+      setAlertCacheOpen(true);
+    })
+  }
+
   async function toggleWorkSess(start, stop, reset) {
     raiseError('');
     let success = false;
     
-    if (isStarted) {
+    if (isStarted) { // STOP
       stop();
       reset();
       setStartTime(-1);
@@ -78,12 +89,12 @@ export default function MainView({}) {
         raiseError(`Encountered error(s) while trying to stop work session: ${errors.join(', ')}`);
       }
       success = true;
-    } else {
+    } else { // START
       if (browserRef.current.getURL().startsWith('https://assurehealth--hc.lightning.force.com/lightning/r/Account/')) {
         setLoading(true);
-        const { errors, sessData } = await WorkSess.onStart(workType, browserRef.current, canvasRef.current);
+        const { errors, session } = await WorkSess.onStart(workType, browserRef.current, canvasRef.current, alertCache);
         setLoading(false);
-        setSessData(sessData);
+        setSession(session);
         if (errors.length === 0) {
           start();
           setStartTime(Date.now());
@@ -152,20 +163,6 @@ export default function MainView({}) {
                     <Grid item>
                       <WorkTypeComboBox workType={workType} setWorkType={setWorkType} />
                     </Grid>
-                    <Grid item>
-                      <IconButton onClick={() => { setConfigOpen(true); }}>
-                        <Settings />
-                      </IconButton>
-                      <Dialog
-                        open={configOpen}
-                        onClose={() => { setConfigOpen(false); }}
-                      >
-                        <DialogTitle>Settings</DialogTitle>
-                        <DialogContent>
-                          <ConfigMenu />
-                        </DialogContent>
-                      </Dialog>
-                    </Grid>
                   </Grid>
                 </React.Fragment>
               )}
@@ -173,6 +170,11 @@ export default function MainView({}) {
           </Toolbar>
         </div>
       </AppBar>
+      <AlertCache 
+        open={alertCacheOpen}
+        setOpen={setAlertCacheOpen}
+        resolveAlertCache={resolveAlertCache}
+      />
       <PuffLoader
         color={colors.purple[700]}
         css={'display: block; margin: 0 auto;'}
@@ -196,7 +198,7 @@ export default function MainView({}) {
       <Canvas 
         isStarted={isStarted}
         startTime={startTime}
-        sessData={sessData}
+        session={session}
         ref={canvasRef}
       />
     </div>
@@ -207,22 +209,42 @@ function Alert(props) {
   return <MuiAlert elevation={6} variant="filled" {...props} />;
 }
 
-function ConfigMenu({}) {
-  const [state, setState] = useState({
-    useWebcam: config.get('rec.useWebcam')
-  });
+function AlertCache({ open, setOpen, resolveAlertCache }) {
+  const theme = useTheme();
+  const fullScreen = useMediaQuery(theme.breakpoints.down('sm'));
 
-  const handleFormToggle = (event) => {
-    setState({ ...state, [event.target.name]: event.target.checked });
-    config.set(event.target.name, event.target.checked)
+  function handleClose(isNewSession) {
+    setOpen(false);
+    resolveAlertCache(isNewSession);
   };
 
   return (
     <div>
-      <FormControlLabel
-        control={<Switch checked={state.useWebcam} onChange={handleFormToggle} name="useWebcam" />}
-        label="Use Webcam"
-      />
+      <Dialog
+        fullScreen={fullScreen}
+        open={open}
+        aria-labelledby="responsive-dialog-title"
+        onClose={(event, reason) => {
+          if (reason !== 'backdropClick' && reason !== 'escapeKeyDown')
+            handleClose(false);
+        }}
+      >
+        <DialogTitle id="responsive-dialog-title">Cached Session Found</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            A cached session was recovered. Would you like to resume
+            recording it or delete it and start a new session?
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button autoFocus onClick={() => handleClose(false)} color="primary">
+            Resume
+          </Button>
+          <Button onClick={() => handleClose(true)} color="secondary" autoFocus>
+            Restart
+          </Button>
+        </DialogActions>
+      </Dialog>
     </div>
   );
 }
@@ -284,7 +306,7 @@ function WorkTypeComboBox({ workType, setWorkType }) {
   );
 }
 
-const Canvas = React.forwardRef(({ isStarted, startTime, sessData }, ref) => {  
+const Canvas = React.forwardRef(({ isStarted, startTime, session }, ref) => {  
   function draw(ctx) {
     // Background
     ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
@@ -301,12 +323,12 @@ const Canvas = React.forwardRef(({ isStarted, startTime, sessData }, ref) => {
       ctx.fillText(`${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`, x, y); y += ls1;
 
       ctx.font = "13px Arial";
-      ctx.fillText(`Patient: ${sessData.patientName} (ID: ${sessData.patient_ID})`, x, y); y += ls2;
-      ctx.fillText(`Session ID: ${sessData.sessID}`, x, y); y += ls2;
-      const clinSplit = sessData.clinician_name.split(' ');
+      ctx.fillText(`Patient: ${session.patientName} (ID: ${session.payload.patient_ID})`, x, y); y += ls2;
+      ctx.fillText(`Session ID: ${session.id}`, x, y); y += ls2;
+      const clinSplit = session.payload.clinician_name.split(' ');
       ctx.fillText(`Care Manager: ${clinSplit[1]}, ${clinSplit[0]}`, x, y); y += ls2;
-      ctx.fillText(`Work Performed By: ${sessData.clinician_name}`, x, y); y += ls2;
-      const timeStr = new Date(sessData.start_time).toLocaleTimeString('en-US', { timeZone: 'America/New_York' });
+      ctx.fillText(`Work Performed By: ${session.payload.clinician_name}`, x, y); y += ls2;
+      const timeStr = new Date(session.payload.start_time).toLocaleTimeString('en-US', { timeZone: 'America/New_York' });
       const durationStr = `${hours} hr, ${minutes} min, ${seconds} sec`;
       ctx.fillText(`Started: ${timeStr} EDT (${durationStr})`, x, y);
     }

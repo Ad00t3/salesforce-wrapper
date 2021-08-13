@@ -15,17 +15,17 @@ const ffmpegPath = path.join(
     ffmpegStatic.substring((li === -1 ? ffmpegStatic.lastIndexOf('\\') : li) + 1)
 );
 console.log(ffmpegPath);
-
 const recFormat = 'video/webm';
-var merger, mergerRec;
-var screenStream, webcamStream, canvasStream;
-var mergerRecBlobs = [];
 
 // Start streams & merger
-export async function startStreams(sessID, sessData, errors, canvas) {
-    merger = null; mergerRec = null;
-    screenStream = null; webcamStream = null, canvasStream = null;
-    mergerRecBlobs = [];
+export async function startStreams(session, errors, canvas) {
+    var merger = null; mergerRec = null;
+    var screenStream = null; webcamStream = null, canvasStream = null;
+    var mergerRecBlobs = [];
+
+    const webm = session.p.sess('video.webm');
+    const mp4 = session.p.sess('video.mp4');
+    const writeStream = fs.createWriteStream(webm);
 
     try {
         const sWidth = config.get('rec.sWidth');
@@ -72,7 +72,7 @@ export async function startStreams(sessID, sessData, errors, canvas) {
         merger.start();
 
         mergerRec = new MediaRecorder(merger.result, { mimeType: recFormat });
-        mergerRec.ondataavailable = (e) => { mergerRecBlobs.push(e.data); }
+        mergerRec.ondataavailable = e => e.data.stream().pipe(writeStream);
         mergerRec.onstop = async (e) => {
             try {
                 if (merger) { 
@@ -92,12 +92,11 @@ export async function startStreams(sessID, sessData, errors, canvas) {
                     webcamStream = null;
                 }
     
-                const webm = `out/${sessID}/video.webm`;
-                const mp4 = `out/${sessID}/video.mp4`;
-    
-                const blob = new Blob(mergerRecBlobs, { type: recFormat });
-                const buffer = await blob.arrayBuffer();
-                fs.writeFileSync(webm, Buffer.from(buffer));
+                // const blob = new Blob(mergerRecBlobs, { type: recFormat });
+                // const buffer = await blob.arrayBuffer();
+                // fs.writeFileSync(webm, Buffer.from(buffer));
+
+                if (writeStream) writeStream.close();
                 child.execFileSync(ffmpegPath, [ '-fflags', '+genpts', '-i', webm, '-r', '25', mp4 ]);
                 fs.removeSync(webm);
                 mergerRec.dispatchEvent(new Event('writeDone'));
