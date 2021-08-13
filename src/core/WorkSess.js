@@ -127,6 +127,7 @@ export function onStop() {
             // Wrap up
             mergerRec = null;
             console.log(session);
+            await resetSession();
             resolve({ errors: errors });
         });
     });
