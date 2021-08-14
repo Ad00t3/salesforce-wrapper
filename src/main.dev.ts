@@ -15,6 +15,7 @@ import { app, BrowserWindow, shell } from 'electron';
 import { autoUpdater } from 'electron-updater';
 import log from 'electron-log';
 import Store from 'electron-store';
+
 import config from './config/config';
 
 Store.initRenderer();
@@ -27,7 +28,7 @@ export default class AppUpdater {
   }
 }
 
-let win: BrowserWindow | null = null;
+let mainWindow: BrowserWindow | null = null;
 
 if (process.env.NODE_ENV === 'production') {
   const sourceMapSupport = require('source-map-support');
@@ -70,7 +71,7 @@ const createWindow = async () => {
     return path.join(RESOURCES_PATH, ...paths);
   };
 
-  win = new BrowserWindow({
+  mainWindow = new BrowserWindow({
     title: `${config.get('title')}`,
     width: 1366,
     height: 768,
@@ -79,34 +80,25 @@ const createWindow = async () => {
     webPreferences: {
       devTools: true,
       nodeIntegration: true,
-      webviewTag: true,
-      enableRemoteModule: true
+      enableRemoteModule: true,
+      webviewTag: true
     },
     icon: getAssetPath('icon.png'),
   });
+  mainWindow.loadURL(`file://${__dirname}/index.html`);
 
-  win.loadURL(`file://${__dirname}/index.html`);
-
-  // @TODO: Use 'ready-to-show' event
-  //        https://github.com/electron/electron/blob/master/docs/api/browser-window.md#using-ready-to-show-event
-  win.webContents.on('did-finish-load', () => {
-    if (!win) {
-      throw new Error('"win" is not defined');
-    }
-    if (process.env.START_MINIMIZED) {
-      win.minimize();
-    } else {
-      win.show();
-      win.focus();
-    }
+  mainWindow.on('ready-to-show', () => {
+    if (!mainWindow) throw new Error('"win" is not defined');
+    mainWindow.show();
+    mainWindow.focus();
   });
 
-  win.on('closed', () => {
-    win = null;
+  mainWindow.on('closed', () => {
+    mainWindow = null;
   });
 
   // Open urls in the user's browser
-  win.webContents.on('new-window', (event, url) => {
+  mainWindow.webContents.on('new-window', (event, url) => {
     event.preventDefault();
     shell.openExternal(url);
   });
@@ -125,7 +117,5 @@ app.on('window-all-closed', () => app.quit());
 app.whenReady().then(createWindow).catch(console.log);
 
 app.on('activate', () => {
-  // On macOS it's common to re-create a window in the app when the
-  // dock icon is clicked and there are no other windows open.
-  if (win === null) createWindow();
+  if (mainWindow == null) createWindow();
 });
