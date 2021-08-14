@@ -36,15 +36,17 @@ import * as WorkSess from '../core/WorkSess';
 import config from '../config/config';
 import * as util from '../util/util';
 
+var startTimer = () => {};
+var stopTimer = () => {};
+var resetTimer = () => {};
+
 export default function MainView({}) {
   const [isStarted, setIsStarted] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [workType, setWorkType] = useState('');
   const [loading, setLoading] = useState(false);
-  const [startTime, setStartTime] = useState(-1);
-  const [session, setSession] = useState({});
+  const [sessionState, setSessionState] = useState({});
   const [alertCacheOpen, setAlertCacheOpen] = useState(false);
-  const [resolveAlertCache, setResolveAlertCache] = useState(null);
 
   const browserRef = useRef(null);
   const canvasRef = useRef(null);
@@ -61,26 +63,19 @@ export default function MainView({}) {
     setErrorMsg(split.join(' '));
   }
 
-  function hErrorClose(e, r) {
-    if (r !== 'clickaway') 
-      raiseError('');
+  function setTimerMethods(start, stop, reset) {
+    startTimer = () => start();
+    stopTimer = () => stop();
+    resetTimer = () => reset();
   }
 
-  function alertCache() {
-    return new Promise((resolve, reject) => {
-      setResolveAlertCache(resolve);
-      setAlertCacheOpen(true);
-    })
-  }
-
-  async function toggleWorkSess(start, stop, reset) {
+  async function toggleWorkSess(isCachePromptResponse, isNewSession) {
     raiseError('');
     let success = false;
     
     if (isStarted) { // STOP
-      stop();
-      reset();
-      setStartTime(-1);
+      stopTimer();
+      resetTimer();
       setLoading(true);
       const { errors } = await WorkSess.onStop();
       setLoading(false);
@@ -91,12 +86,16 @@ export default function MainView({}) {
     } else { // START
       if (browserRef.current.getURL().startsWith('https://assurehealth--hc.lightning.force.com/lightning/r/Account/')) {
         setLoading(true);
-        const { errors, session } = await WorkSess.onStart(workType, browserRef.current, canvasRef.current, alertCache);
+        if (!isCachePromptResponse && WorkSess.checkCache()) {
+          setAlertCacheOpen(true);
+          return;
+        }
+        const { errors, session } = await WorkSess.onStart(workType, browserRef.current, canvasRef.current, isNewSession);
         setLoading(false);
-        setSession(session);
+        setSessionState(session);
+        setWorkType(session.payload.work_type);
         if (errors.length === 0) {
-          start();
-          setStartTime(Date.now());
+          startTimer();
           success = true;
         } else {
           raiseError(`Encountered error(s) while trying to start work session: ${errors.join(', ')}`);
@@ -135,11 +134,11 @@ export default function MainView({}) {
                       <Snackbar 
                         open={errorMsg !== ''} 
                         autoHideDuration={3000} 
-                        onClose={hErrorClose}
+                        onClose={() => { raiseError(''); }}
                         anchorOrigin={{ vertical: 'top', horizontal: 'left' }}
                         key="topleft"
                       >
-                        <Alert onClose={hErrorClose} severity="error" style={{ whiteSpace: 'pre-line' }}>
+                        <Alert onClose={() => { raiseError(''); }} severity="error" style={{ whiteSpace: 'pre-line' }}>
                           { errorMsg }
                         </Alert>
                       </Snackbar>
@@ -153,7 +152,10 @@ export default function MainView({}) {
                       <IconButton 
                         variant="contained" 
                         style={{ backgroundColor: (isStarted ? colors.red[400] : colors.green[400]) }}
-                        onClick={async () => { await toggleWorkSess(start, stop, reset); }}
+                        onClick={async () => { 
+                          setTimerMethods(start, stop, reset);
+                          await toggleWorkSess(false, true);
+                        }}
                         disabled={loading}
                       >
                         { isStarted ? <Stop /> : <PlayArrow /> }
@@ -172,8 +174,7 @@ export default function MainView({}) {
       <AlertCache 
         open={alertCacheOpen}
         setOpen={setAlertCacheOpen}
-        resolveAlertCache={resolveAlertCache}
-        setResolveAlertCache={setResolveAlertCache}
+        toggleWorkSess={toggleWorkSess}
       />
       <PuffLoader
         color={colors.purple[700]}
@@ -197,8 +198,7 @@ export default function MainView({}) {
       />
       <Canvas 
         isStarted={isStarted}
-        startTime={startTime}
-        session={session}
+        session={sessionState}
         ref={canvasRef}
       />
     </div>
@@ -209,14 +209,13 @@ function Alert(props) {
   return <MuiAlert elevation={6} variant="filled" {...props} />;
 }
 
-function AlertCache({ open, setOpen, resolveAlertCache, setResolveAlertCache }) {
+function AlertCache({ open, setOpen, toggleWorkSess }) {
   const theme = useTheme();
   const fullScreen = useMediaQuery(theme.breakpoints.down('sm'));
 
-  function handleClose(isNewSession) {
+  async function handleClose(isNewSession) {
     setOpen(false);
-    resolveAlertCache(isNewSession);
-    setResolveAlertCache(null);
+    await toggleWorkSess(true, isNewSession)
   };
 
   return (
@@ -227,7 +226,7 @@ function AlertCache({ open, setOpen, resolveAlertCache, setResolveAlertCache }) 
         aria-labelledby="responsive-dialog-title"
         onClose={(event, reason) => {
           if (reason !== 'backdropClick' && reason !== 'escapeKeyDown')
-            handleClose(false);
+            onClose(event, reason);
         }}
       >
         <DialogTitle id="responsive-dialog-title">Cached Session Found</DialogTitle>
@@ -238,10 +237,10 @@ function AlertCache({ open, setOpen, resolveAlertCache, setResolveAlertCache }) 
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button autoFocus onClick={() => handleClose(false)} color="primary">
+          <Button onClick={async () => { await handleClose(false); }} color="primary">
             Resume
           </Button>
-          <Button onClick={() => handleClose(true)} color="secondary" autoFocus>
+          <Button onClick={async () => { await handleClose(true); }} color="secondary">
             Restart
           </Button>
         </DialogActions>
@@ -307,7 +306,9 @@ function WorkTypeComboBox({ workType, setWorkType }) {
   );
 }
 
-const Canvas = React.forwardRef(({ isStarted, startTime, session }, ref) => {  
+const Canvas = React.forwardRef(({ isStarted, session }, ref) => {  
+  var startTime = Date.now();
+
   function draw(ctx) {
     // Background
     ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
@@ -320,18 +321,25 @@ const Canvas = React.forwardRef(({ isStarted, startTime, session }, ref) => {
       var ls1 = 24, ls2 = 18;
 
       ctx.font = "26px Arial";
+
       const { hours, minutes, seconds } = util.deconstructDuration(Math.round((Date.now() - startTime) / 1000.0));
       ctx.fillText(`${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`, x, y); y += ls1;
 
       ctx.font = "13px Arial";
       ctx.fillText(`Patient: ${session.patientName} (ID: ${session.payload.patient_ID})`, x, y); y += ls2;
       ctx.fillText(`Session ID: ${session.id}`, x, y); y += ls2;
+      ctx.fillText(`Activity Type: ${session.payload.work_type}`, x, y); y += ls2;
       const clinSplit = session.payload.clinician_name.split(' ');
       ctx.fillText(`Care Manager: ${clinSplit[1]}, ${clinSplit[0]}`, x, y); y += ls2;
       ctx.fillText(`Work Performed By: ${session.payload.clinician_name}`, x, y); y += ls2;
-      const timeStr = new Date(session.payload.start_time).toLocaleTimeString('en-US', { timeZone: 'America/New_York' });
-      const durationStr = `${hours} hr, ${minutes} min, ${seconds} sec`;
-      ctx.fillText(`Started: ${timeStr} EDT (${durationStr})`, x, y);
+
+      const nowEST = new Date(util.toEST(new Date())).getTime();
+      const realStart = new Date(session.payload.start_time).getTime();
+      const sinceRealStart = util.deconstructDuration(Math.round((nowEST - realStart) / 1000.0));
+      const durationStr = `${sinceRealStart.hours} hr, ${sinceRealStart.minutes} min, ${sinceRealStart.seconds} sec`;
+      ctx.fillText(`Started: ${session.payload.start_time.split(', ')[1]} EDT (${durationStr} ago)`, x, y);
+    } else {
+      startTime = Date.now();
     }
   }
   

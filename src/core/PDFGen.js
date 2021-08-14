@@ -5,7 +5,7 @@ import * as util from '../util/util';
 const fs = require('fs');
 
 // Generate audit log PDF
-export async function genAuditLog(session) {
+export async function genAuditLog(session, pSess) {
       const pdf = await PDFDocument.create();
 
       const timesBold = await pdf.embedFont(StandardFonts.TimesRomanBold);
@@ -50,14 +50,18 @@ export async function genAuditLog(session) {
 
       page.drawText('AUDIT LOG:', { x: pdfX, y: pdfY, font: times, size: f2 }); pdfY -= ls2;
 
-      page.drawText(`${startSplit[1]} EDT to ${endSplit[1]} EDT (${durationStr})`, { x: pdfX, y: pdfY, font: times, size: f2 }); pdfY -= ls2;
+      const realStartTime = new Date(session.payload.start_time).getTime();
+      const realEndTime = new Date(session.payload.end_time).getTime();
+      const realDuration = util.deconstructDuration(Math.round(realEndTime - realStartTime) / 1000.0);
+      const realDurationStr = `${realDuration.hours} hr, ${realDuration.minutes} min, ${realDuration.seconds} sec`;
+      page.drawText(`${startSplit[1]} EDT to ${endSplit[1]} EDT (${realDurationStr})`, { x: pdfX, y: pdfY, font: times, size: f2 }); pdfY -= ls2;
 
       page.drawText('Screen Recording?       YES', { x: pdfX, y: pdfY, font: times, size: f2 }); pdfY -= ls1;
       page.drawText(`Webcam Recording?    ${config.get('useWebcam') ? 'YES' : 'NO'}`, { x: pdfX, y: pdfY, font: times, size: f2 }); pdfY -= ls2;
 
-      const nowSplit = new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }).split(', ');
+      const nowSplit = util.toEST(new Date()).split(', ');
       page.drawText(`This work session time audit log was programmatically generated, without`, { x: pdfX, y: pdfY, font: timesBold, size: f3 }); pdfY -= ls3;
       page.drawText(`human intervention, by tamper-proof software on ${nowSplit[0]} at ${nowSplit[1]} EDT`, { x: pdfX, y: pdfY, font: timesBold, size: f3 });
 
-      fs.writeFileSync(session.p.sess('audit.pdf'), await pdf.save());
+      fs.writeFileSync(pSess('audit.pdf'), await pdf.save());
 }

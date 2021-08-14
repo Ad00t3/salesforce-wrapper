@@ -1,4 +1,5 @@
 import config from '../config/config';
+import * as util from '../util/util';
 import * as PDFGen from './PDFGen';
 import * as BoxApi from './BoxApi';
 import * as VideoProc from './VideoProc';
@@ -14,9 +15,18 @@ const app = remote.app;
 var mergerRec;
 var session = {};
 var errors = [];
+var foldersInOut = [];
 
 const pOut = p => path.join(app.getPath('userData'), 'out', p || '');
 const pSess = fileName => path.join(pOut(session.id), fileName || '');
+
+// Check if there's a cached session
+export function checkCache() {
+    foldersInOut = fs.existsSync(pOut()) ? fs.readdirSync(pOut(), { withFileTypes: true })
+                            .filter(dirent => dirent.isDirectory())
+                            .map(dirent => dirent.name) : [];
+    return (foldersInOut.length > 0);
+}
 
 async function resetSession() {
     session = {
@@ -33,27 +43,15 @@ async function resetSession() {
             clinician_IP: (await publicIp.v4()),
             pdf_audit: '',
             video_audit: ''
-        },
-        p: {
-            out: pOut,
-            sess: pSess
         }
     }
 }
 
 // When timer starts
-export async function onStart(workType, browser, canvas, cacheCB) {
+export async function onStart(workType, browser, canvas, isNewSession) {
     // Reset
     errors = [];
     await resetSession();
-    var isNewSession = true;
-
-    // Check if there's a cached session
-    const foldersInOut = fs.existsSync(pOut()) ? fs.readdirSync(pOut(), { withFileTypes: true })
-                            .filter(dirent => dirent.isDirectory())
-                            .map(dirent => dirent.name) : [];
-    if (foldersInOut.length > 0)
-        isNewSession = await cacheCB();
 
     if (isNewSession) {
         // Generate new session
@@ -94,45 +92,46 @@ export async function onStart(workType, browser, canvas, cacheCB) {
                 })();
             `);
         }
-
-        session.payload.start_time = new Date();
-        fs.writeFileSync(pSess('session.json'), JSON.stringify(session));
     } else {
-        session = fs.readFileSync(path.join(pOut(), foldersInOut[0], 'session.json'));
+        // Read session from cache
+        session = JSON.parse(fs.readFileSync(path.join(pOut(), foldersInOut[0], 'session.json')));
     }
 
     // Start streams & recording
-    mergerRec = await VideoProc.startStreams(session, errors, canvas);
+    mergerRec = await VideoProc.startStreams(session, pSess, errors, canvas);
     if (errors.length === 0) {
         if (mergerRec) mergerRec.start(1000);
+        if (isNewSession) {
+            // Write session to cache
+            session.payload.start_time = util.toEST(new Date());
+            fs.writeFileSync(pSess('session.json'), JSON.stringify(session));
+        }
     } else {
         fs.removeSync(pSess());
     }
-    return { errors: errors,  session: session };
+    return { errors: errors, session: session };
 }
 
 
 // When timer stopped
 export function onStop() {
-    // End timing
+    // End timing & recording
     errors = [];
-    session.payload.end_time = new Date();
-    session.payload.duration = Math.round(( session.payload.end_time -  session.payload.start_time) / 1000.0);
-    session.payload.start_time =  session.payload.start_time.toLocaleString('en-US', { timeZone: 'America/New_York' });
-    session.payload.end_time =  session.payload.end_time.toLocaleString('en-US', { timeZone: 'America/New_York' });
-
-    // End recording
+    session.payload.end_time = util.toEST(new Date());
     if (mergerRec && mergerRec.state === 'recording')
         mergerRec.stop();
     
     return new Promise((resolve, reject) => {
         mergerRec.addEventListener('writeDone', async (e) => {
+            // Get duration from mp4
+            session.payload.duration = Math.round(VideoProc.getVideoDuration(pSess('video.mp4'), errors));
+
             // Send files to Box.com API
             await BoxApi.initFolder(session, errors);
-            session.payload.video_audit = (await BoxApi.upload('video.mp4')) || '';
-            await PDFGen.genAuditLog(session);
-            session.payload.pdf_audit = (await BoxApi.upload('audit.pdf')) || '';
-
+            session.payload.video_audit = (await BoxApi.upload(pSess('video.mp4'))) || '';
+            await PDFGen.genAuditLog(session, pSess);
+            session.payload.pdf_audit = (await BoxApi.upload(pSess('audit.pdf'))) || '';
+            
             if (errors.length === 0) {
                 fs.removeSync(pSess());
                 Lambda.sendToSalesforceWrapperRouter(session.payload, errors);

@@ -26,11 +26,12 @@ export async function initFolder(sessionP, errorsP) {
 }
 
 // Upload file to Box.com folder, returns sharing link
-export async function upload(fileName) {
+export async function upload(filePath) {
+    const fileName = path.basename(filePath);
     try {
         var fileObj;
         const accessToken = await client._session.getAccessToken(client._tokenOptions);
-        const f = fs.readFileSync(session.p.sess(fileName));
+        const f = fs.readFileSync(filePath);
 
         if (f.length < 20000000) {
             const formData = new FormData();

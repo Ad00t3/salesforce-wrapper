@@ -5,3 +5,7 @@ export function deconstructDuration(duration) {
         seconds: duration % 60
     };
 }
+
+export function toEST(date) {
+    return new Date(date).toLocaleString('en-US', { timeZone: 'America/New_York' });
+} 

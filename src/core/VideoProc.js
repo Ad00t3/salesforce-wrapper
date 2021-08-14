@@ -9,24 +9,28 @@ const child = require('child_process');
 const { Readable, Writable } = require('stream');
 
 const ffmpegStatic = require('ffmpeg-static');
-const li = ffmpegStatic.lastIndexOf('/');
+const li = ffmpegStatic.lastIndexOf('src') + 3;
 const ffmpegPath = path.join(
     (remote.app.getAppPath() + '/../').replace('app.asar', 'app.asar.unpacked'),
     'node_modules/ffmpeg-static/',
     ffmpegStatic.substring((li === -1 ? ffmpegStatic.lastIndexOf('\\') : li) + 1)
 );
 console.log(ffmpegPath);
+const ffprobeStatic = require('ffprobe-static').path;
+const li2 = ffprobeStatic.lastIndexOf('src') + 3;
+const ffprobePath = path.join(
+    (remote.app.getAppPath() + '/../').replace('app.asar', 'app.asar.unpacked'),
+    'node_modules/ffprobe-static/',
+    ffprobeStatic.substring((li2 === -1 ? ffprobeStatic.lastIndexOf('\\') : li2) + 1)
+);
+console.log(ffprobePath);
 
 // Start streams & merger
-export async function startStreams(session, errors, canvas) {
+export async function startStreams(session, pSess, errors, canvas) {
     var merger = null, mergerRec = null;
     var screenStream = null, webcamStream = null, canvasStream = null;
     var mergerRecBlobs = [];
     var isStopped = false;
-
-    const webm = session.p.sess('video.webm');
-    const mp4 = session.p.sess('video.mp4');
-    var writeStream = fs.createWriteStream(webm);
 
     try {
         const sWidth = config.get('rec.sWidth');
@@ -53,7 +57,9 @@ export async function startStreams(session, errors, canvas) {
         };
 
         merger = new VideoStreamMerger();
-        merger.setOutputSize(sDim.width + wDim.width, sDim.height);
+        var totalWidth = sDim.width + wDim.width;
+        if (totalWidth % 2 !== 0) totalWidth++;
+        merger.setOutputSize(totalWidth, sDim.height);
 
         const sources = await desktopCapturer.getSources({ types: ['window', 'screen'] });
         const winID = sources.filter(win => win.name === config.get('title'))[0].id;
@@ -72,13 +78,22 @@ export async function startStreams(session, errors, canvas) {
 
         merger.start();
 
-        mergerRec = new MediaRecorder(merger.result, { mimeType: 'video/webm' });
+        var vI = 0;
+        var webm = pSess(`video-${vI}.webm`);
+        var mp4 = pSess('video.mp4');    
+        while (fs.existsSync(webm)) {
+            webm = pSess(`video-${++vI}.webm`);
+        }
+
+        mergerRec = new MediaRecorder(merger.result, { mimeType: 'video/webm;codecs=vp9' });
         mergerRec.ondataavailable = e => {
-            new Blob([e.data], { type: 'video/webm' }).arrayBuffer().then(buffer => {
-                writeStream.write(new Buffer(buffer));
-                if (isStopped)
-                    mergerRec.dispatchEvent(new Event('lastBlobWritten'));
-            });
+            if (e.data && e.data.size > 0) {
+                e.data.arrayBuffer().then(buffer => {
+                    fs.outputFileSync(webm, Buffer.from(buffer), { flag: 'a' });
+                    if (isStopped)
+                        mergerRec.dispatchEvent(new Event('lastBlobWritten'));
+                });
+            }
         }
         mergerRec.onstop = e => {
             isStopped = true;
@@ -100,20 +115,32 @@ export async function startStreams(session, errors, canvas) {
                     webcamStream.getTracks().forEach(track => track.stop());
                     webcamStream = null;
                 }
-    
-                // const blob = new Blob(mergerRecBlobs, { type: recFormat });
-                // const buffer = await blob.arrayBuffer();
-                // fs.writeFileSync(webm, Buffer.from(buffer));
 
                 mergerRec.addEventListener('lastBlobWritten', () => {
-                    if (writeStream) {
-                        writeStream.close();
-                        writeStream.destroy();
-                        writeStream = null;
+                    try {
+                        // Remove video.webm (redundancy)
+                        webm = pSess('video.webm');
+                        fs.removeSync(webm);
+
+                        // Create concat list
+                        var concatList = '';
+                        fs.readdirSync(pSess())
+                            .filter(fileName => fileName.endsWith('webm'))
+                            .forEach(webmFileName => concatList += `file '${webmFileName}'\n`);
+                        const concatListFp = pSess('concatList.txt');
+                        fs.writeFileSync(concatListFp, concatList);
+
+                        // Concat all cached webm files
+                        child.execFileSync(ffmpegPath, [ '-f', 'concat', '-i', concatListFp, '-c', 'copy', '-avoid_negative_ts', '1', webm]);
+
+                        // Convert to mp4 & move on
+                        fs.removeSync(mp4);
+                        child.execFileSync(ffmpegPath, [ '-fflags', '+genpts', '-i', webm, '-r', '25', mp4 ]);
+                        mergerRec.dispatchEvent(new Event('writeDone'));
+                    } catch (ex) {
+                        errors.push('lastBlobWritten-failed');
+                        console.error(ex);
                     }
-                    child.execFileSync(ffmpegPath, [ '-fflags', '+genpts', '-i', webm, '-r', '25', mp4 ]);
-                    fs.removeSync(webm);
-                    mergerRec.dispatchEvent(new Event('writeDone'));
                 });
             } catch (ex) {
                 errors.push('mergerRec-onstop-failed');
@@ -128,9 +155,12 @@ export async function startStreams(session, errors, canvas) {
     return mergerRec;
 }
 
-function bufferToStream(buffer) {
-    const stream = new Readable();
-    stream.push(buffer);
-    stream.push(null);
-    return stream;
+export function getVideoDuration(filePath, errors) {
+    try {
+        return parseFloat(child.execFileSync(ffprobePath, [ '-v', 'error', '-show_entries', 'format=duration', '-of', 'default=noprint_wrappers=1:nokey=1', filePath ]));
+    } catch (e) {
+        errors.push('ffprobe-failed');
+        console.error(e);
+    }
 }
+
