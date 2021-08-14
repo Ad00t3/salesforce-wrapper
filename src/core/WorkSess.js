@@ -3,7 +3,7 @@ import * as util from '../util/util';
 import * as PDFGen from './PDFGen';
 import * as BoxApi from './BoxApi';
 import * as VideoProc from './VideoProc';
-import * as Lambda from './Lambda';
+import * as AwsApi from './AwsApi';
 
 const fs = require('fs-extra');
 const path = require('path');
@@ -53,6 +53,7 @@ export async function onStart(workType, browser, canvas, isNewSession) {
     // Reset
     errors = [];
     await resetSession();
+    await AwsApi.getConfigFromParamStore(errors);
 
     if (isNewSession) {
         // New session basic information
@@ -66,22 +67,27 @@ export async function onStart(workType, browser, canvas, isNewSession) {
             errors.push('invalid-activity-type');
 
         // Get clinician name & email
-        var href = '';
-        await browser.executeJavaScript('document.querySelector("button.branding-userProfile-button").click();');
-        while (href === '') {
-            href = await browser.executeJavaScript(`
-                (() => {
-                    const a = document.querySelector("a.profile-link-label");
-                    if (a && a.href) return a.href;
-                    return "";
-                })();
-            `);
+        try {
+            var href = '';
+            await browser.executeJavaScript('document.querySelector("button.branding-userProfile-button").click();');
+            while (href === '') {
+                href = await browser.executeJavaScript(`
+                    (() => {
+                        const a = document.querySelector("a.profile-link-label");
+                        if (a && a.href) return a.href;
+                        return "";
+                    })();
+                `);
+            }
+            const sfId18 = href.substring(href.indexOf('/r/User/') + 8, href.indexOf('/view'));
+            await browser.loadURL(`https://assurehealth--hc.my.salesforce.com/${sfId18.substring(0, 15)}?noredirect=1&isUserEntityOverride=1`);
+            session.clinicianName = await browser.executeJavaScript('document.querySelector("#ep > div.pbBody > div.pbSubsection > table > tbody > tr:nth-child(1) > td.dataCol.col02").textContent;');
+            session.payload.clinician_email = await browser.executeJavaScript('document.querySelector("#ep > div.pbBody > div.pbSubsection > table > tbody > tr:nth-child(3) > td.dataCol.col02 > a").textContent;');
+            await browser.loadURL(pURL);
+        } catch (e) {
+            errors.push('clinician-not-found');
+            console.error(e);
         }
-        const sfId18 = href.substring(href.indexOf('/r/User/') + 8, href.indexOf('/view'));
-        await browser.loadURL(`https://assurehealth--hc.my.salesforce.com/${sfId18.substring(0, 15)}?noredirect=1&isUserEntityOverride=1`);
-        session.clinicianName = await browser.executeJavaScript('document.querySelector("#ep > div.pbBody > div.pbSubsection > table > tbody > tr:nth-child(1) > td.dataCol.col02").textContent;');
-        session.payload.clinician_email = await browser.executeJavaScript('document.querySelector("#ep > div.pbBody > div.pbSubsection > table > tbody > tr:nth-child(3) > td.dataCol.col02 > a").textContent;');
-        await browser.loadURL(pURL);
 
         // Create session folder
         fs.removeSync(pOut());
@@ -126,14 +132,14 @@ export function onStop() {
             await PDFGen.genAuditLog(session, pSess);
             session.payload.pdf_audit = (await BoxApi.upload(pSess('audit.pdf'))) || '';
             
+            console.log(session);
             if (errors.length === 0) {
                 fs.removeSync(pSess());
-                Lambda.sendToSalesforceWrapperRouter(session.payload, errors);
+                await AwsApi.sendToSalesforceWrapperRouter(session.payload, errors);
             }
             
             // Wrap up
             mergerRec = null;
-            console.log(session);
             await resetSession();
             resolve({ errors: errors });
         });
