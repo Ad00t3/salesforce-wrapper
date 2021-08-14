@@ -9,27 +9,20 @@ import { dependencies as externals } from '../../src/package.json';
 export default {
   externals: [...Object.keys(externals || {})],
 
-  plugins: [
-    new webpack.EnvironmentPlugin({
-      NODE_ENV: 'production',
-    }),
-    new webpack.DefinePlugin({
-      'process.browser': 'true'
-    })
-  ],
-
-  /**
-   * Determine the array of extensions that should be used to resolve modules.
-   */
-  resolve: {
-    extensions: ['.js', '.jsx', '.json', '.ts', '.tsx'],
-    modules: [path.join(__dirname, '../../src'), 'node_modules'],
-  },
-
   module: {
     rules: [
       {
-        test: /\.tsx?$/,
+        test: /\.(ts|tsx)?$/,
+        exclude: /node_modules/,
+        use: {
+          loader: 'babel-loader',
+          options: {
+            cacheDirectory: true,
+          },
+        },
+      },
+      {
+        test: /\.(js|jsx)$/,
         exclude: /node_modules/,
         use: {
           loader: 'babel-loader',
@@ -46,4 +39,21 @@ export default {
     // https://github.com/webpack/webpack/issues/1114
     libraryTarget: 'commonjs2',
   }
+
+  /**
+   * Determine the array of extensions that should be used to resolve modules.
+   */
+  resolve: {
+    extensions: ['.js', '.jsx', '.json', '.ts', '.tsx'],
+    modules: [path.join(__dirname, '../../src'), 'node_modules'],
+  },
+
+  plugins: [
+    new webpack.EnvironmentPlugin({
+      NODE_ENV: 'production',
+    }),
+    new webpack.DefinePlugin({
+      'process.browser': 'true'
+    })
+  ],
 };
