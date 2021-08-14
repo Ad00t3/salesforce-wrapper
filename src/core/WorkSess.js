@@ -79,8 +79,8 @@ export async function onStart(workType, browser, canvas, isNewSession) {
         }
         const sfId18 = href.substring(href.indexOf('/r/User/') + 8, href.indexOf('/view'));
         await browser.loadURL(`https://assurehealth--hc.my.salesforce.com/${sfId18.substring(0, 15)}?noredirect=1&isUserEntityOverride=1`);
-        session.clinicianName = await browser.executeJavaScript('document.querySelector("#ep > div.pbBody > div.pbSubsection > table > tbody > tr:nth-child(1) > td.dataCol.col02").textContent;'));
-        session.payload.clinician_email = await browser.executeJavaScript('document.querySelector("#ep > div.pbBody > div.pbSubsection > table > tbody > tr:nth-child(3) > td.dataCol.col02 > a").textContent;'));
+        session.clinicianName = await browser.executeJavaScript('document.querySelector("#ep > div.pbBody > div.pbSubsection > table > tbody > tr:nth-child(1) > td.dataCol.col02").textContent;');
+        session.payload.clinician_email = await browser.executeJavaScript('document.querySelector("#ep > div.pbBody > div.pbSubsection > table > tbody > tr:nth-child(3) > td.dataCol.col02 > a").textContent;');
 
         // Create session folder
         fs.removeSync(pOut());
