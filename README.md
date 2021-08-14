@@ -1,7 +1,7 @@
 <div align="center">
-  <!-- <a href="https://travis-ci.com/Ad00t2/CallNotifier">
-    <img alt="Build Status" src="https://travis-ci.com/Ad00t2/CallNotifier.svg?branch=prod">
-  </a> -->
+  <a href="https://travis-ci.com/Ad00t3/salesforce-wrapper">
+    <img alt="Build Status" src="https://travis-ci.com/Ad00t3/salesforce-wrapper.svg?branch=prod">
+  </a>
 
   <br>
 
