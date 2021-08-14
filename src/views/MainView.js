@@ -185,7 +185,7 @@ export default function MainView({}) {
       <WebView 
         src={'https://assurehealth--hc.my.salesforce.com/'}
         style={{ 
-          display: (loading ? 'grid' : 'grid'),
+          display: (loading ? 'none' : 'grid'),
           position: 'absolute',
           left: '-8px',
           top: '85px',
