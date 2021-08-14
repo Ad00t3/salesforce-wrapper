@@ -8,10 +8,14 @@ export function sendToSalesforceWrapperRouter(payload, errors) {
         FunctionName: 'arn:aws:lambda:us-east-2:263491656789:function:salesforceWrapperRouter',
         Payload: JSON.stringify(payload)
     }, (err, res) => {
-        if (err || !(res.StatusCode >= 200 && res.StatusCode < 300)) { 
-            errors.push(`lambda-invocation-failed:${res ? res.StatusCode : 'no-code'}`); 
+        if (err) { 
+            errors.push(`lambda-invocation-failed`); 
             console.error(err); 
         }
-        else console.log(res);
+        if (res) {
+            if (res.StatusCode !== 201)
+                errors.push(`bad-lambda-res:${res.StatusCode}:${res.Payload}`);
+            console.log(res);
+        }
     });      
 }

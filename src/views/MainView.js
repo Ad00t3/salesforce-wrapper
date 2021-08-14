@@ -185,7 +185,7 @@ export default function MainView({}) {
       <WebView 
         src={'https://assurehealth--hc.my.salesforce.com/'}
         style={{ 
-          display: (loading ? 'none' : 'grid'),
+          display: (loading ? 'grid' : 'grid'),
           position: 'absolute',
           left: '-8px',
           top: '85px',
@@ -327,11 +327,11 @@ const Canvas = React.forwardRef(({ isStarted, session }, ref) => {
 
       ctx.font = "13px Arial";
       ctx.fillText(`Patient: ${session.patientName} (ID: ${session.payload.patient_ID})`, x, y); y += ls2;
-      ctx.fillText(`Session ID: ${session.id}`, x, y); y += ls2;
+      ctx.fillText(`Session ID: ${session.payload.worksession_id}`, x, y); y += ls2;
       ctx.fillText(`Activity Type: ${session.payload.work_type}`, x, y); y += ls2;
-      const clinSplit = session.payload.clinician_name.split(' ');
+      const clinSplit = session.clinicianName.split(' ');
       ctx.fillText(`Care Manager: ${clinSplit[1]}, ${clinSplit[0]}`, x, y); y += ls2;
-      ctx.fillText(`Work Performed By: ${session.payload.clinician_name}`, x, y); y += ls2;
+      ctx.fillText(`Work Performed By: ${session.clinicianName}`, x, y); y += ls2;
 
       const nowEST = new Date(util.toEST(new Date())).getTime();
       const realStart = new Date(session.payload.start_time).getTime();

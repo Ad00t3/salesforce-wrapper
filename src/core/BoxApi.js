@@ -18,7 +18,7 @@ export async function initFolder(sessionP, errorsP) {
         errors = errorsP;
         session = sessionP;
         client = sdk.getAppAuthClient('user', '16850231633');
-        folder = await client.folders.create('142933730580', session.id);
+        folder = await client.folders.create('142933730580', session.payload.worksession_id);
     } catch (e) {
         errors.push('box-init-failed');
         console.error(e);

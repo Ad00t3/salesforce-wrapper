@@ -29,18 +29,18 @@ export async function genAuditLog(session, pSess) {
       page.drawText('Remote Patient Monitoring Clinical Work', { x: pdfX, y: pdfY, size: 16, font: timesBold, size: f1 }); pdfY -= ls2;
 
       page.drawText(`Patient Name: ${session.patientName}`, { x: pdfX, y: pdfY, font: times, size: f2 }); pdfY -= ls1;
-      const split = session.payload.clinician_name.split(' ');
+      const split = session.clinicianName.split(' ');
       page.drawText(`Care Manager: ${split[1]}, ${split[0]}`, { x: pdfX, y: pdfY, font: times, size: f2 }); pdfY -= ls1;
       page.drawText(`Activity Type: ${session.payload.work_type}`, { x: pdfX, y: pdfY, font: times, size: f2 }); pdfY -= ls2;
 
-      page.drawText(`Time Logged By: ${session.payload.clinician_name}`, { x: pdfX, y: pdfY, font: times, size: f2 }); pdfY -= ls1;
+      page.drawText(`Time Logged By: ${session.clinicianName}`, { x: pdfX, y: pdfY, font: times, size: f2 }); pdfY -= ls1;
       page.drawText(`IP Address: ${session.payload.clinician_IP}`, { x: pdfX, y: pdfY, font: times, size: f2 }); pdfY -= ls1;
       page.drawText(`Audit Software Version: ${session.payload.log_method}`, { x: pdfX, y: pdfY, font: times, size: f2 }); pdfY -= ls2;
 
       const startSplit = session.payload.start_time.split(', ');
       const endSplit = session.payload.end_time.split(', ');
       page.drawText(`Date of Work Session: ${startSplit[0]}`, { x: pdfX, y: pdfY, font: times, size: f2 }); pdfY -= ls1;
-      page.drawText(`Work Session ID: ${session.id}`, { x: pdfX, y: pdfY, font: times, size: f2 }); pdfY -= ls2;
+      page.drawText(`Work Session ID: ${session.payload.worksession_id}`, { x: pdfX, y: pdfY, font: times, size: f2 }); pdfY -= ls2;
 
       const { hours, minutes, seconds } = util.deconstructDuration(session.payload.duration);
       const durationStr = `${hours} hr, ${minutes} min, ${seconds} sec`;

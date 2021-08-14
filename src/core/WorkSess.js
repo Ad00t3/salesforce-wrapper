@@ -18,7 +18,7 @@ var errors = [];
 var foldersInOut = [];
 
 const pOut = p => path.join(app.getPath('userData'), 'out', p || '');
-const pSess = fileName => path.join(pOut(session.id), fileName || '');
+const pSess = fileName => path.join(pOut(session.payload.worksession_id), fileName || '');
 
 // Check if there's a cached session
 export function checkCache() {
@@ -30,14 +30,15 @@ export function checkCache() {
 
 async function resetSession() {
     session = {
-        id: '',
         patientName: '',
+        clinicianName: '',
         payload: {
+            worksession_id: '',
             start_time: '',
             end_time: '',
             duration: 0,
             patient_ID: '',
-            clinician_name: '',
+            clinician_email: '',
             work_type: '',
             log_method: config.get('title'),
             clinician_IP: (await publicIp.v4()),
@@ -54,12 +55,8 @@ export async function onStart(workType, browser, canvas, isNewSession) {
     await resetSession();
 
     if (isNewSession) {
-        // Generate new session
-        session.id = randstring.generate(16);
-        fs.removeSync(pOut());
-        fs.mkdirSync(pSess(), { recursive: true });
-
-        // Initial information
+        // New session basic information
+        session.payload.worksession_id = randstring.generate(16);
         session.patientName = browser.getTitle();
         session.patientName = session.patientName.substring(0, session.patientName.indexOf('|')).trim();
         const pURL = browser.getURL();
@@ -68,30 +65,26 @@ export async function onStart(workType, browser, canvas, isNewSession) {
         if (session.payload.work_type === '')
             errors.push('invalid-activity-type');
 
-        // Get clinician name
-        // await browser.loadURL('https://assurehealth--hc.lightning.force.com/lightning/settings/personal/PersonalInformation/home');
-        // while (true) {
-        //     session.payload.clinician_name = await browser.executeJavaScript(`
-        //         (() => {
-        //             setTimeout(() => {
-        //                 return [...document.querySelectorAll("input")].length;
-        //             }, 1000);
-        //         })();
-        //     `);
-        //     console.log(session.payload.clinician_name);
-        // }   
-        // await browser.loadURL(pURL);
-
+        // Get clinician name & email
+        var href = '';
         await browser.executeJavaScript('document.querySelector("button.branding-userProfile-button").click();');
-        while (session.payload.clinician_name === '') {
-            session.payload.clinician_name = await browser.executeJavaScript(`
+        while (href === '') {
+            href = await browser.executeJavaScript(`
                 (() => {
-                    const nameCard = document.querySelector("h1.profile-card-name");
-                    if (nameCard && nameCard.textContent) return nameCard.textContent;
+                    const a = document.querySelector("a.profile-link-label");
+                    if (a && a.href) return a.href;
                     return "";
                 })();
             `);
         }
+        const sfId18 = href.substring(href.indexOf('/r/User/') + 8, href.indexOf('/view'));
+        await browser.loadURL(`https://assurehealth--hc.my.salesforce.com/${sfId18.substring(0, 15)}?noredirect=1&isUserEntityOverride=1`);
+        session.clinicianName = await browser.executeJavaScript('document.querySelector("#ep > div.pbBody > div.pbSubsection > table > tbody > tr:nth-child(1) > td.dataCol.col02").textContent;'));
+        session.payload.clinician_email = await browser.executeJavaScript('document.querySelector("#ep > div.pbBody > div.pbSubsection > table > tbody > tr:nth-child(3) > td.dataCol.col02 > a").textContent;'));
+
+        // Create session folder
+        fs.removeSync(pOut());
+        fs.mkdirSync(pSess(), { recursive: true });
     } else {
         // Read session from cache
         session = JSON.parse(fs.readFileSync(path.join(pOut(), foldersInOut[0], 'session.json')));
