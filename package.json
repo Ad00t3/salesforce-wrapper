@@ -3,7 +3,7 @@
   "productName": "Salesforce Wrapper",
   "version": "1.0.0",
   "description": "Cross-platform salesforce website wrapper/time tracker",
-  "repository": "https://github.com/Ad00t/salesforce-wrapper",
+  "repository": "https://github.com/Ad00t3/salesforce-wrapper",
   "author": "Assure Health",
   "scripts": {
     "build": "concurrently \"yarn build:main\" \"yarn build:renderer\"",
