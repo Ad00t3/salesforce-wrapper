@@ -3,7 +3,6 @@ import config from '../config/config';
 const fs = require('fs-extra');
 const path = require('path');
 const { remote, desktopCapturer } = require('electron');
-const { screen } = remote;
 const VideoStreamMerger = require('video-stream-merger').VideoStreamMerger;
 const child = require('child_process');
 const { Readable, Writable } = require('stream');
