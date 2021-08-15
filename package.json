@@ -1,7 +1,7 @@
 {
   "name": "salesforce-wrapper",
   "productName": "Salesforce Wrapper",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Cross-platform salesforce website wrapper/time tracker",
   "repository": "https://github.com/Ad00t3/salesforce-wrapper",
   "author": "Assure Health",
@@ -21,7 +21,11 @@
     "productName": "SalesforceWrapper",
     "appId": "com.assurehealth.salesforcewrapper",
     "publish": "github",
-    "asar": false,
+    "asarUnpack": [
+      "node_modules/ffmpeg-static/bin/${os}/${arch}/ffmpeg",
+      "node_modules/ffmpeg-static/index.js",
+      "node_modules/ffmpeg-static/package.json"
+    ],
     "files": [
       "dist/",
       "node_modules/",
