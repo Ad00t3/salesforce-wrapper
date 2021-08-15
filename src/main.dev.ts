@@ -18,6 +18,9 @@ import Store from 'electron-store';
 
 import config from './config/config';
 
+const ffmpegStatic = require('ffmpeg-static');
+const ffprobeStatic = require('ffprobe-static');
+
 Store.initRenderer();
 
 export default class AppUpdater {
@@ -70,6 +73,11 @@ const createWindow = async () => {
   const getAssetPath = (...paths: string[]): string => {
     return path.join(RESOURCES_PATH, ...paths);
   };
+
+  config.set('ffmpegPath', ffmpegStatic.replace('app.asar', 'app.asar.unpacked'));
+  config.set('ffprobePath', ffprobeStatic.path.replace('app.asar', 'app.asar.unpacked'));
+  console.log(config.get('ffmpegPath'));
+  console.log(config.get('ffprobePath'));
 
   mainWindow = new BrowserWindow({
     title: `${config.get('title')}`,
