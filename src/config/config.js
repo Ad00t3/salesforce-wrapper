@@ -15,7 +15,9 @@ const config = new Store({
         sHeight: { type: 'number' },
         f: { type: 'number' }
       }
-    }
+    },
+    ffmpegPath: { type: 'string' },
+    ffprobePath: { type: 'string' }
   },
   defaults: {
     title: '',
@@ -25,7 +27,9 @@ const config = new Store({
       sWidth: 1280,
       sHeight: 720,
       f: 3.5
-    }
+    },
+    ffmpegPath: '',
+    ffprobePath: ''
   }
 });
 
