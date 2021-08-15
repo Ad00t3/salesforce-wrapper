@@ -66,7 +66,6 @@ export async function startStreams(session, pSess, errors, canvas) {
 
         var vI = 0;
         var webm = pSess(`video-${vI}.webm`);
-        var mp4 = pSess('video.mp4');    
         while (fs.existsSync(webm)) {
             webm = pSess(`video-${++vI}.webm`);
         }
@@ -104,22 +103,23 @@ export async function startStreams(session, pSess, errors, canvas) {
 
                 mergerRec.addEventListener('lastBlobWritten', () => {
                     try {
-                        // Remove video.webm (redundancy)
-                        webm = pSess('video.webm');
-                        fs.removeSync(webm);
-
-                        // Create concat list && concat webms
+                        // Convert to mp4s and create concat list
                         var concatList = '';
                         fs.readdirSync(pSess())
                             .filter(fileName => fileName.endsWith('webm'))
-                            .forEach(webmFileName => concatList += `file '${pSess(webmFileName)}'\n`);
+                            .forEach(webmFn => {
+                                const mp4Fn = webmFn.replace('webm', 'mp4');
+                                fs.removeSync(pSess(mp4Fn));
+                                child.execFileSync(config.get('ffmpegPath'), [ '-fflags', '+genpts', '-i', pSess(webmFn), '-r', '25', pSess(mp4Fn) ]);
+                                concatList += `file '${pSess(mp4Fn)}'\n`
+                            });
                         const concatListFp = pSess('concatList.txt');
                         fs.writeFileSync(concatListFp, concatList);
-                        child.execFileSync(config.get('ffmpegPath'), [ '-safe', '0', '-f', 'concat', '-i', concatListFp, '-c', 'copy', webm]);
 
-                        // Convert to mp4 & move on
-                        fs.removeSync(mp4);
-                        child.execFileSync(config.get('ffmpegPath'), [ '-fflags', '+genpts', '-i', webm, '-r', '25', mp4 ]);
+                        // Concat mp4s
+                        var finalMp4 = pSess('video.mp4');    
+                        fs.removeSync(finalMp4);
+                        child.execFileSync(config.get('ffmpegPath'), [ '-safe', '0', '-f', 'concat', '-i', concatListFp, '-c', 'copy', finalMp4 ]);
                         mergerRec.dispatchEvent(new Event('writeDone'));
                     } catch (ex) {
                         errors.push('lastBlobWritten-failed');

@@ -60,8 +60,8 @@ export async function onStart(workType, browser, canvas, isNewSession) {
         session.payload.worksession_id = randstring.generate(16);
         session.patientName = browser.getTitle();
         session.patientName = session.patientName.substring(0, session.patientName.indexOf('|')).trim();
-        const pURL = browser.getURL();
-        session.payload.patient_ID = pURL.replace('https://assurehealth--hc.lightning.force.com/lightning/r/Account/', '').replace('/view', '');
+        const pURL = browser.getURL(); 
+        session.payload.patient_ID = pURL.split('/')[6];
         session.payload.work_type = workType;
         if (session.payload.work_type === '')
             errors.push('invalid-activity-type');
@@ -79,7 +79,7 @@ export async function onStart(workType, browser, canvas, isNewSession) {
                     })();
                 `);
             }
-            const sfId18 = href.substring(href.indexOf('/r/User/') + 8, href.indexOf('/view'));
+            const sfId18 = href.split('/')[6];
             await browser.loadURL(`https://assurehealth--hc.my.salesforce.com/${sfId18.substring(0, 15)}?noredirect=1&isUserEntityOverride=1`);
             session.clinicianName = await browser.executeJavaScript('document.querySelector("#ep > div.pbBody > div.pbSubsection > table > tbody > tr:nth-child(1) > td.dataCol.col02").textContent;');
             session.payload.clinician_email = await browser.executeJavaScript('document.querySelector("#ep > div.pbBody > div.pbSubsection > table > tbody > tr:nth-child(3) > td.dataCol.col02 > a").textContent;');
