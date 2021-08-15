@@ -10,7 +10,7 @@
     "build:main": "cross-env NODE_ENV=production webpack --config ./.erb/configs/webpack.config.main.prod.babel.js",
     "build:renderer": "cross-env NODE_ENV=production webpack --config ./.erb/configs/webpack.config.renderer.prod.babel.js",
     "rebuild": "electron-rebuild --parallel --types prod,dev,optional --module-dir src",
-    "release": "rm -rf src/dist && yarn build && electron-builder build --publish never",
+    "release": "rm -rf src/dist && yarn build && electron-builder build",
     "postinstall": "node -r @babel/register .erb/scripts/CheckNativeDep.js && electron-builder install-app-deps && yarn cross-env NODE_ENV=development webpack --config ./.erb/configs/webpack.config.renderer.dev.dll.babel.js && opencollective-postinstall && yarn-deduplicate yarn.lock",
     "start": "node -r @babel/register ./.erb/scripts/CheckPortInUse.js && yarn start:renderer",
     "start:main": "cross-env NODE_ENV=development electron -r ./.erb/scripts/BabelRegister ./src/main.dev.ts",
@@ -28,51 +28,38 @@
     ],
     "files": [
       "dist/",
+      "node_modules/",
       "index.html",
       "main.prod.js",
       "main.prod.js.map",
       "package.json"
     ],
-    "afterSign": ".erb/scripts/Notarize.js",
-    "mac": {
-      "target": [
-        "dmg"
-      ],
-      "type": "distribution",
-      "hardenedRuntime": true,
-      "entitlements": "assets/entitlements.mac.plist",
-      "entitlementsInherit": "assets/entitlements.mac.plist",
-      "gatekeeperAssess": false
-    },
     "dmg": {
       "contents": [
         {
-          "x": 130,
-          "y": 220
+          "x": 110,
+          "y": 150
         },
         {
-          "x": 410,
-          "y": 220,
+          "x": 240,
+          "y": 150,
           "type": "link",
           "path": "/Applications"
         }
       ]
     },
-    "win": {
-      "target": [
-        "nsis"
-      ]
+    "appImage": {
+      "license": "LICENSE"
     },
-    "linux": {
-      "target": [
-        "AppImage"
-      ],
-      "category": "Development"
+    "nsis": {
+      "createDesktopShortcut": "always",
+      "createStartMenuShortcut": true,
+      "license": "LICENSE"
     },
     "directories": {
       "app": "src",
       "buildResources": "assets",
-      "output": "release"
+      "output": "dist"
     },
     "extraResources": [
       "./assets/**"
