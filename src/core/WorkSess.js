@@ -1,23 +1,23 @@
-import config from '../config/config';
-import * as util from '../util/util';
 import * as PDFGen from './PDFGen';
 import * as BoxApi from './BoxApi';
 import * as VideoProc from './VideoProc';
 import * as AwsApi from './AwsApi';
+
+import * as util from '../util/util';
+import config from '../config/config';
 
 const fs = require('fs-extra');
 const path = require('path');
 const randstring = require('randomstring');
 const publicIp = require('public-ip');
 const { remote } = require('electron');
-const app = remote.app;
 
 var mergerRec;
 var session = {};
 var errors = [];
 var foldersInOut = [];
 
-const pOut = p => path.join(app.getPath('userData'), 'out', p || '');
+const pOut = p => path.join(remote.app.getPath('userData'), 'out', p || '');
 const pSess = fileName => path.join(pOut(session.payload.worksession_id), fileName || '');
 
 // Check if there's a cached session
