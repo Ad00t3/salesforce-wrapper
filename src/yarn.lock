@@ -2,3 +2,12 @@
 # yarn lockfile v1
 
 
+ffmpeg-static-electron@^2.0.3:
+  version "2.0.3"
+  resolved "https://registry.yarnpkg.com/ffmpeg-static-electron/-/ffmpeg-static-electron-2.0.3.tgz#4d49bf18ea929844bb135f60c51013fcb15d0790"
+  integrity sha512-VGix5A0LTM6RHgwkFvL5x+c5m4WfacBFeuw7Twq1gVrYRgLHOVpawOmydmWbrRz58LVO7ao00P2EDjb7ZmE5rg==
+
+ffprobe-static-electron@^2.0.2:
+  version "2.0.2"
+  resolved "https://registry.yarnpkg.com/ffprobe-static-electron/-/ffprobe-static-electron-2.0.2.tgz#6b202cc7a20cf90a076a4686f2034222dfb65384"
+  integrity sha512-HtEUZ7qpi5WcbgnI7m0slS6qzjoKnlqfxW6Yx7cWV75hRhkWnwlhq0mVAyWtRm2hujMm2/8sfhq1A/8RC6A0GQ==
