@@ -1,7 +1,7 @@
 {
   "name": "salesforce-wrapper",
   "productName": "Salesforce Wrapper",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Cross-platform salesforce website wrapper/time tracker",
   "main": "./main.prod.js",
   "author": "Assure Health",
@@ -10,6 +10,9 @@
     "postinstall": "yarn electron-rebuild"
   },
   "license": "MIT",
-  "dependencies": {},
+  "dependencies": {
+    "ffmpeg-static-electron": "^2.0.3",
+    "ffprobe-static-electron": "^2.0.2"
+  },
   "devDependencies": {}
 }

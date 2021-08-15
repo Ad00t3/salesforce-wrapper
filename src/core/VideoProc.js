@@ -7,6 +7,14 @@ const VideoStreamMerger = require('video-stream-merger').VideoStreamMerger;
 const child = require('child_process');
 const { Readable, Writable } = require('stream');
 
+// Check ffmpeg & ffprobe installations
+try {
+    console.log(child.execFileSync(config.get('ffmpegPath'), [ '-version' ]).toString());
+    console.log(child.execFileSync(config.get('ffprobePath'), [ '-version' ]).toString());
+} catch (e) {
+    console.error('ffmpeg/ffprobe not found: ' + e);
+}
+
 // Start streams & merger
 export async function startStreams(session, pSess, errors, canvas) {
     var merger = null, mergerRec = null;
@@ -42,12 +50,8 @@ export async function startStreams(session, pSess, errors, canvas) {
         var totalWidth = sDim.width + wDim.width;
         if (totalWidth % 2 !== 0) totalWidth++;
         merger.setOutputSize(totalWidth, sDim.height);
-
-        const sources = await desktopCapturer.getSources({ types: ['window', 'screen'] });
-        const winID = sources.filter(win => win.name === config.get('title'))[0].id;
-        const nScreen = winID.substring(winID.lastIndexOf(':') + 1, winID.length);
         
-        screenStream = await navigator.mediaDevices.getUserMedia({ video: { mandatory: { chromeMediaSource: 'desktop', chromeMediaSourceId: `screen:${nScreen || '0'}:0` }}, audio: false });
+        screenStream = await navigator.mediaDevices.getUserMedia({ video: { mandatory: { chromeMediaSource: 'desktop', chromeMediaSourceId: 'screen:0:0' }}, audio: false });
         merger.addStream(screenStream, { ...sDim, index: 0, mute: true });
 
         canvasStream = canvas.captureStream(25);
@@ -104,16 +108,14 @@ export async function startStreams(session, pSess, errors, canvas) {
                         webm = pSess('video.webm');
                         fs.removeSync(webm);
 
-                        // Create concat list
+                        // Create concat list && concat webms
                         var concatList = '';
                         fs.readdirSync(pSess())
                             .filter(fileName => fileName.endsWith('webm'))
-                            .forEach(webmFileName => concatList += `file '${webmFileName}'\n`);
+                            .forEach(webmFileName => concatList += `file '${pSess(webmFileName)}'\n`);
                         const concatListFp = pSess('concatList.txt');
                         fs.writeFileSync(concatListFp, concatList);
-
-                        // Concat all cached webm files
-                        child.execFileSync(config.get('ffmpegPath'), [ '-f', 'concat', '-i', concatListFp, '-c', 'copy', '-avoid_negative_ts', '1', webm]);
+                        child.execFileSync(config.get('ffmpegPath'), [ '-safe', '0', '-f', 'concat', '-i', concatListFp, '-c', 'copy', webm]);
 
                         // Convert to mp4 & move on
                         fs.removeSync(mp4);
