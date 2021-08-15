@@ -74,8 +74,16 @@ const createWindow = async () => {
     return path.join(RESOURCES_PATH, ...paths);
   };
 
-  config.set('ffmpegPath', ffmpegStatic.replace('app.asar', 'app.asar.unpacked'));
-  config.set('ffprobePath', ffprobeStatic.path.replace('app.asar', 'app.asar.unpacked'));
+  // "asarUnpack": [
+  //   "node_modules/ffmpeg-static/ffmpeg",
+  //   "node_modules/ffmpeg-static/index.js",
+  //   "node_modules/ffmpeg-static/package.json",
+  //   "node_modules/ffprobe-static/bin/${os}/${arch}/ffprobe",
+  //   "node_modules/ffprobe-static/index.js",
+  //   "node_modules/ffprobe-static/package.json"
+  // ],
+  config.set('ffmpegPath', ffmpegStatic);
+  config.set('ffprobePath', ffprobeStatic.path);
   console.log(config.get('ffmpegPath'));
   console.log(config.get('ffprobePath'));
 
